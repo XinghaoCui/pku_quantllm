@@ -1,6 +1,14 @@
 # pku_quantllm
 当代量化交易系统原理与实现课程讨论区
 
+
+## 课程讨论与作业提交
+
+- 每一讲使用一个课程主 Issue：当前为 [第一讲 #1](https://github.com/aslan9/pku_quantllm/issues/1) 和 [第二讲 #2](https://github.com/aslan9/pku_quantllm/issues/2)。
+- 作业请在对应课程主 Issue 下评论提交仓库链接，不要为一次作业单独新建 Issue。
+- 单独提问请新建 Issue，并写明讲次、运行环境、复现步骤、报错和已尝试的处理；课程安排以课程群或仓库最新通知为准。
+- **禁止提交账号、密码、AuthCode、密钥、完整资金快照或其他凭据。** 本地配置请加入 `.gitignore`，公开仓库只保留无值样例。
+
 ## 选课同学
 
 > 姓名与学号已脱敏；名单来源于课程选课信息表。
