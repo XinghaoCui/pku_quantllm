@@ -9,6 +9,7 @@
 | --- | --- | --- |
 | 龙 | 23＊＊＊＊＊＊30 | [OwenTam-PKU](https://github.com/OwenTam-PKU) |
 | 宇 | 24＊＊＊＊＊＊32 | [gry1024](https://github.com/gry1024) |
+| 宇 | 24＊＊＊＊＊＊53 | [QiyuZhang-new](https://github.com/QiyuZhang-new) |
 | 涛 | 23＊＊＊＊＊＊89 | [mabucai](https://github.com/mabucai) |
 | 然 | 24＊＊＊＊＊＊08 | [Sallllly777](https://github.com/Sallllly777) |
 | 迈 | 24＊＊＊＊＊＊78 | [Mai-Xu](https://github.com/Mai-Xu) |
