@@ -1,0 +1,5 @@
+__pycache__/
+*.py[cod]
+*.feather
+*.parquet
+.DS_Store
