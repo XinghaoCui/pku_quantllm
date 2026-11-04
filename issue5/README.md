@@ -36,16 +36,16 @@ issue5/
 
 ### 1. 准备数据
 
-把课程 `feathers.zip` 解压到 `issue5/feathers/`（七个 `.feather`，第一列 `date`）。
+在 `issue5/` 下把课程 `feathers.zip` 解压到 `feathers/`（七个 `.feather`，第一列 `date`）。
 原始行情体积大且是课程数据，**不放进仓库**。
 
-ST 历史需要一个 `st_mask.parquet`（dates × codes，1=ST）和一个 `st_proxy.parquet`。
+ST 历史需要 `issue5/st_mask.parquet`（dates × codes，1=ST）和 `issue5/st_proxy.parquet`。
 没有它们也能跑，但所有证券都会被当作"未知 ST"而不买入：
 
 ```bash
 # 可选: 从 BaoStock 抓逐日 isST (需要联网)
 python -c "import baostock" || pip install baostock
-python fetch_st.py          # 见仓库 lesson03/lesson04 的同名脚本
+python fetch_st.py          # 抓 BaoStock 逐日 isST -> st_mask.parquet
 # 可选: 生成价格行为推断的 ST 掩码
 python build_st_proxy.py
 ```
@@ -78,7 +78,7 @@ python -m http.server 8000
 
 ```bash
 python -m unittest discover -s tests -v     # 16 项
-python audit.py --results results ...       # 9 项独立复算
+python audit.py --results results --data-dir feathers \n               --st st_mask.parquet --st-proxy st_proxy.parquet   # 9 项独立复算
 ```
 
 ## 评价口径（摘要）

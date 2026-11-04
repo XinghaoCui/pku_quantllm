@@ -3,7 +3,7 @@
 范围: 2020-01-01 ~ 2026-10-16 (覆盖因子评价的全部历史)
 
 支持增量续抓: 已存在的列不会重复请求, 失败的列下次再跑会重试.
-用法: py fetch_st.py [workers]   # 数据放在 ../feathers, 结果写到 ../st_mask.parquet
+用法: py fetch_st.py [workers]   # 数据放在 feathers/, 结果写到 st_mask.parquet
 """
 import os
 import sys
@@ -15,7 +15,7 @@ import pandas as pd
 
 START, END = '2020-01-01', '2026-10-16'
 DATA = 'feathers'
-MASK = '../st_mask.parquet'
+MASK = 'st_mask.parquet'
 
 
 def to_bs(code: str) -> str:

@@ -4,7 +4,7 @@ A 股主板 ST/*ST 的涨跌幅限制是 5%, 非 ST 是 10%(创业板/科创板 
 因此"过去 60 个交易日里出现多次接近 5% 的涨跌停, 且从未超过 5.5%"是
 很强的 ST 信号.
 
-产出 ../st_proxy.parquet (dates x codes, int8: 1=推断ST, 0=推断非ST)
+产出 st_proxy.parquet (dates x codes, int8: 1=推断ST, 0=推断非ST)
 并打印与官方逐日标签的混淆矩阵.
 用法: py build_st_proxy.py
 """
@@ -33,9 +33,9 @@ def main():
     high = pd.read_feather(f'{DATA}/high.feather').set_index('date')
     low = pd.read_feather(f'{DATA}/low.feather').set_index('date')
     proxy = build_proxy(close, high, low)
-    proxy.to_parquet('../st_proxy.parquet')
+    proxy.to_parquet('st_proxy.parquet')
 
-    off = pd.read_parquet('../st_mask.parquet')
+    off = pd.read_parquet('st_mask.parquet')
     common = [c for c in off.columns if c in proxy.columns]
     # 只比较 2024-02 之后 (滚动窗口已满)
     d0 = off.index[0] + pd.Timedelta(days=120)
