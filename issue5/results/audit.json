@@ -1,0 +1,52 @@
+{
+  "n_checks": 9,
+  "n_pass": 9,
+  "all_pass": true,
+  "checks": [
+    {
+      "check": "rev5 因子值复算",
+      "ok": true,
+      "detail": "最大误差 2.81e-08"
+    },
+    {
+      "check": "lowvol20 因子值复算",
+      "ok": true,
+      "detail": "最大误差 7.43e-09"
+    },
+    {
+      "check": "标签口径 O*(t+1+h)/O*(t+1)-1",
+      "ok": true,
+      "detail": "最大误差 2.92e-08"
+    },
+    {
+      "check": "RankIC 独立复算(scipy)",
+      "ok": true,
+      "detail": "抽查 6 日, 最大误差 3.29e-06"
+    },
+    {
+      "check": "现金守恒(逐笔重放)",
+      "ok": true,
+      "detail": "13 个因子, 212542 笔, 最大误差 0.00 元"
+    },
+    {
+      "check": "费用公式(佣金/印花税)",
+      "ok": true,
+      "detail": "异常 0 笔"
+    },
+    {
+      "check": "买入整手",
+      "ok": true,
+      "detail": "异常 0 笔"
+    },
+    {
+      "check": "T+1 无同日回转",
+      "ok": true,
+      "detail": "异常 0 处"
+    },
+    {
+      "check": "不买入 ST",
+      "ok": true,
+      "detail": "异常 0 笔"
+    }
+  ]
+}

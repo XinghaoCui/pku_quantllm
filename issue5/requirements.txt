@@ -1,0 +1,6 @@
+pandas>=2.0
+numpy>=1.24
+pyarrow>=14
+scipy>=1.10
+# 仅抓 ST 需要
+baostock>=0.8

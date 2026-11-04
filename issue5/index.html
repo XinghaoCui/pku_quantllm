@@ -1,50 +1,2490 @@
+<!--
+  因子研究工作台 · 第五讲 因子与因子评价
+  单文件报告：内联 CSS + 原生 JavaScript，无构建工具、无 CDN、无外部字体，离线可用。
+
+  !! 必须通过本地 HTTP 服务打开 !!
+  在本目录执行：python -m http.server 8000
+  然后访问：    http://localhost:8000/
+  直接双击以 file:// 打开时，浏览器会按同源策略拦截 fetch('data/dashboard.json')。
+
+  数据：data/dashboard.json。页面会按 UTF-8 严格解码，失败后回退 GBK，
+  并把 Python json.dump 可能写出的 NaN / Infinity 字面量归一为 null。
+-->
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>因子研究台 · Issue 5</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>因子研究工作台 · 第五讲 因子与因子评价</title>
 <style>
-:root{color-scheme:light;--ink:#18262e;--muted:#64747d;--line:#dbe2e4;--paper:#fff;--wash:#f2f5f4;--teal:#087f78;--teal2:#34a99a;--red:#d45b55;--gold:#d89b2b;--blue:#487ba8}
-*{box-sizing:border-box}body{margin:0;background:var(--wash);color:var(--ink);font:14px/1.5 "Segoe UI","Microsoft YaHei",sans-serif}header{background:#17343a;color:#fff;padding:20px 28px;display:flex;justify-content:space-between;align-items:center;gap:20px;border-bottom:4px solid var(--teal2)}h1{margin:0;font-size:21px;font-weight:650}header p{margin:4px 0 0;color:#c5d3d2;font-size:12px}.meta{font-size:12px;color:#d6e0df;text-align:right}main{max-width:1440px;margin:auto;padding:20px 24px 36px}.controls{display:flex;align-items:end;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:16px}label{font-size:11px;color:var(--muted);display:grid;gap:5px}select,input{font:inherit;border:1px solid #bac7c9;background:#fff;color:var(--ink);border-radius:4px;padding:7px 9px;min-width:142px}.range{display:flex;gap:8px}.range input{min-width:130px}.button{border:0;border-radius:4px;background:var(--teal);color:#fff;padding:8px 12px;font:inherit;cursor:pointer}.button:hover{background:#066861}.stats{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));border:1px solid var(--line);background:var(--paper);margin-bottom:16px}.stat{padding:12px 14px;border-right:1px solid var(--line)}.stat:last-child{border:0}.stat span{display:block;color:var(--muted);font-size:11px}.stat strong{display:block;font-variant-numeric:tabular-nums;font-size:18px;margin-top:3px;white-space:nowrap}.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}.panel{background:var(--paper);border:1px solid var(--line);min-width:0}.panel header{padding:11px 14px;background:#fff;color:var(--ink);border:0;border-bottom:1px solid var(--line);font-size:13px;font-weight:650}.chart{height:265px;padding:12px 12px 8px}.chart svg{width:100%;height:100%;overflow:visible}.wide{grid-column:1/-1}.table-wrap{overflow:auto;max-height:440px}.table{width:100%;border-collapse:collapse;font-size:12px}.table th,.table td{text-align:right;padding:8px 10px;border-bottom:1px solid #e7ecec;white-space:nowrap;font-variant-numeric:tabular-nums}.table th{position:sticky;top:0;background:#f4f7f6;color:#52636b}.table th:first-child,.table td:first-child{text-align:left}.badge{font-size:10px;border:1px solid #cfdbd9;color:#48615f;border-radius:3px;padding:2px 5px}.notes{margin-top:14px;padding:12px 14px;color:#56666d;background:#e8eeec;border-left:3px solid var(--teal);font-size:11px}.legend{font-size:10px;fill:#64747d}.empty{color:var(--muted);padding:32px;text-align:center}.tip{font-size:11px;color:var(--muted);margin-left:auto}
-@media(max-width:900px){main{padding:14px}.stats{grid-template-columns:repeat(3,1fr)}.stat:nth-child(3){border-right:0}.stat:nth-child(-n+3){border-bottom:1px solid var(--line)}.grid{grid-template-columns:1fr}.wide{grid-column:auto}header{padding:16px;align-items:flex-start}.meta{max-width:45%}}
-@media(max-width:520px){header{display:block}.meta{text-align:left;margin-top:8px}.stats{grid-template-columns:repeat(2,1fr)}.stat:nth-child(3){border-right:1px solid var(--line)}.stat:nth-child(even){border-right:0}.stat:nth-child(-n+4){border-bottom:1px solid var(--line)}.chart{height:230px}.tip{width:100%;margin-left:0}}
+:root{
+  color-scheme: dark;
+  --bg:#0b1012;
+  --panel:#11181b;
+  --panel-2:#151f22;
+  --panel-3:#192427;
+  --line:#223034;
+  --line-2:#2d3d41;
+  --ink:#e9ece7;
+  --ink-2:#c3ccc8;
+  --muted:#8b9b9e;
+  --dim:#62757a;
+  --gold:#d6b279;
+  --gold-2:#b3925c;
+  --teal:#6fb3a8;
+  --blue:#7f9fc2;
+  --red:#d38b7f;
+  --green:#8fc7a2;
+  --serif:"Songti SC","STSong","SimSun","Noto Serif CJK SC",Georgia,serif;
+  --sans:"Segoe UI","Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
+  --mono:"Cascadia Mono","SFMono-Regular",Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--bg)}
+body{
+  margin:0;
+  color:var(--ink);
+  background:radial-gradient(1100px 430px at 50% -160px,rgba(56,92,86,.22),transparent 70%),var(--bg);
+  font:13.5px/1.65 var(--sans);
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:rgba(214,178,121,.28);color:#fff}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:#0c1214}
+::-webkit-scrollbar-thumb{background:#2b3a3e;border:2px solid #0c1214}
+::-webkit-scrollbar-thumb:hover{background:#3a4d51}
+code,.mono{font-family:var(--mono)}
+.wrap{width:min(1460px,100%);margin:0 auto;padding:0 32px}
+.muted{color:var(--muted)}
+.pos{color:#a5cabb}
+.neg{color:#d8a59b}
+
+/* ---------- masthead ---------- */
+.masthead{padding:30px 0 0;border-bottom:1px solid var(--line)}
+.kicker{display:flex;justify-content:space-between;gap:16px;align-items:baseline;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--gold-2);text-transform:uppercase}
+.kicker .stamp{color:var(--dim);letter-spacing:.1em}
+h1{font-family:var(--serif);font-weight:600;font-size:34px;line-height:1.22;letter-spacing:.01em;margin:10px 0 8px}
+h1 .dot{color:var(--gold-2);font-weight:400}
+h1 .sub{font-size:.56em;color:var(--ink-2);font-weight:400;letter-spacing:.02em;white-space:nowrap}
+.meta-line{display:flex;flex-wrap:wrap;gap:5px 22px;font-size:11.5px;color:var(--muted);line-height:1.7;margin:0 0 4px}
+.meta-item{display:inline-flex;align-items:baseline;gap:6px;min-width:0}
+.meta-item em{font-style:normal;font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;white-space:nowrap}
+.split-strip{display:grid;grid-template-columns:1fr .72fr 1.05fr;gap:9px;margin:18px 0 22px}
+.split{--c:var(--teal);border:1px solid rgba(111,179,168,.26);border-left:3px solid var(--c);
+  background:linear-gradient(180deg,rgba(111,179,168,.10),rgba(111,179,168,.025));padding:10px 14px 11px;min-width:0}
+.split.valid{--c:var(--gold);border-color:rgba(214,178,121,.28);background:linear-gradient(180deg,rgba(214,178,121,.10),rgba(214,178,121,.025))}
+.split.test{--c:var(--red);border-color:rgba(211,139,127,.26);background:linear-gradient(180deg,rgba(211,139,127,.09),rgba(211,139,127,.02))}
+.split-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.split .lab{font-size:11.5px;font-weight:600;color:var(--c);letter-spacing:.06em;white-space:nowrap}
+.split .lab em{font-style:normal;font-family:var(--mono);font-size:8px;letter-spacing:.14em;opacity:.7;margin-left:4px}
+.split .n{font-family:var(--mono);font-size:9.5px;color:var(--dim);white-space:nowrap}
+.split .dates{font-family:var(--mono);font-size:12px;color:var(--ink);margin-top:2px;letter-spacing:.01em}
+.split .note{font-size:10px;color:var(--muted);margin-top:2px}
+
+/* ---------- tabs ---------- */
+.tabbar{position:sticky;top:0;z-index:40;background:rgba(11,16,18,.93);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{appearance:none;background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);
+  padding:13px 18px 11px;font:inherit;font-size:12.5px;cursor:pointer;display:inline-flex;align-items:baseline;gap:8px;white-space:nowrap}
+.tab .ti{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.04em}
+.tab:hover{color:var(--ink-2);background:rgba(255,255,255,.02)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--gold)}
+.tab[aria-selected="true"] .ti{color:var(--gold)}
+.tab:focus-visible,select:focus-visible,button:focus-visible{outline:1px solid var(--gold);outline-offset:2px}
+
+/* ---------- pages / panels ---------- */
+#main{padding:26px 0 54px;scroll-margin-top:54px}
+.page{min-width:0}
+.page[hidden]{display:none}
+.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;margin:2px 0 16px}
+.eyebrow{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--gold-2);text-transform:uppercase}
+.page-head h2{font-family:var(--serif);font-size:25px;line-height:1.25;font-weight:600;letter-spacing:.01em;margin:3px 0 0}
+.lede{font-size:11.5px;color:var(--muted);max-width:720px;margin:0;line-height:1.7}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:2px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:12px 16px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(255,255,255,.018),transparent)}
+.panel-title{font-size:12.5px;font-weight:600;color:var(--ink);display:flex;align-items:baseline;gap:8px;line-height:1.45}
+.panel-title .no{font-family:var(--mono);font-size:9.5px;color:var(--gold);letter-spacing:.04em}
+.panel-sub{font-size:10px;color:var(--dim);line-height:1.55;text-align:right;max-width:55%}
+.panel-foot{padding:8px 16px;border-top:1px solid var(--line);font-size:10px;color:var(--dim);line-height:1.65}
+.panel-body{padding:14px 16px}
+.empty-state{padding:28px 18px;text-align:center;color:var(--dim);font-size:12px}
+
+/* ---------- toolbar / chips ---------- */
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:11px}
+.chips{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);
+  padding:3px 9px;font-size:10.5px;color:var(--muted);line-height:1.5}
+.chip b{font-family:var(--mono);font-size:11px;color:var(--ink);font-weight:600}
+.chip .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+.chip.v-good{color:var(--green);border-color:rgba(143,199,162,.3)}
+.chip.v-potential{color:#8fb4d8;border-color:rgba(127,159,194,.32)}
+.chip.v-insufficient{color:#a3aeb0;border-color:rgba(163,174,176,.26)}
+.chip.v-bad{color:var(--red);border-color:rgba(211,139,127,.3)}
+.chip.total{color:var(--ink-2)}
+.hint{font-size:10px;color:var(--dim);line-height:1.6;text-align:right}
+
+/* ---------- tables ---------- */
+.table-scroll{overflow:auto;max-height:72vh;scrollbar-gutter:stable}
+table.data{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;font-variant-numeric:tabular-nums}
+table.overview{min-width:1278px;table-layout:fixed}
+table.tradable{min-width:1120px;table-layout:fixed}
+table.data thead th{position:sticky;top:0;z-index:3;background:#0f171a;color:var(--muted);
+  font-weight:500;font-size:10px;letter-spacing:.035em;text-align:right;padding:9px 10px;
+  border-bottom:1px solid var(--line-2);white-space:nowrap;user-select:none}
+table.overview thead th{cursor:pointer}
+table.data thead th:first-child{text-align:left;z-index:4}
+table.data thead th.txt{text-align:left}
+table.data tbody td{padding:7px 10px;border-bottom:1px solid #1a2528;text-align:right;white-space:nowrap;color:var(--ink-2)}
+table.data tbody td.txt{text-align:left}
+table.data tbody td:first-child{text-align:left;position:sticky;left:0;z-index:2;background:var(--panel);border-right:1px solid #1a2528}
+table.data tbody tr{cursor:pointer}
+table.data tbody tr:hover td{background:#162124}
+table.data tbody tr:hover td:first-child{background:#162124}
+table.data tbody tr:focus-visible{outline:1px solid var(--gold);outline-offset:-1px}
+table.data tbody tr.selected td{background:rgba(214,178,121,.075)}
+table.data tbody tr.selected td:first-child{background:#192221;box-shadow:inset 2px 0 0 var(--gold)}
+th .sort-ind{display:inline-block;width:11px;margin-left:3px;color:var(--dim);opacity:.55;font-family:var(--mono)}
+th[aria-sort="ascending"] .sort-ind,th[aria-sort="descending"] .sort-ind{color:var(--gold);opacity:1}
+th[aria-sort="ascending"],th[aria-sort="descending"]{color:var(--ink-2)}
+.fname{color:var(--ink);font-weight:500;line-height:1.35}
+.fkey{font-family:var(--mono);font-size:9px;color:var(--dim);line-height:1.4;letter-spacing:.02em}
+code.formula{font-family:var(--mono);font-size:10px;color:var(--muted);display:block;max-width:190px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vbadge{display:inline-flex;align-items:center;gap:5px;font-size:10px;line-height:1;padding:4px 7px;border:1px solid;border-radius:2px;letter-spacing:.03em;white-space:nowrap}
+.vbadge::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
+.vbadge.v-good{color:var(--green);border-color:rgba(143,199,162,.38);background:rgba(94,158,112,.10)}
+.vbadge.v-potential{color:#8fb4d8;border-color:rgba(127,159,194,.4);background:rgba(80,122,166,.11)}
+.vbadge.v-insufficient{color:#a3aeb0;border-color:rgba(163,174,176,.32);background:rgba(140,153,156,.08)}
+.vbadge.v-bad{color:var(--red);border-color:rgba(211,139,127,.4);background:rgba(170,90,78,.11)}
+.vbadge.v-neutral{color:var(--muted);border-color:var(--line-2);background:rgba(255,255,255,.03)}
+
+/* ---------- single factor ---------- */
+.select-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.select-wrap{display:flex;align-items:center;gap:8px;font-size:10.5px;color:var(--dim);white-space:nowrap}
+.select-wrap select{appearance:none;background:var(--panel-2);border:1px solid var(--line-2);color:var(--ink);
+  padding:7px 34px 7px 10px;border-radius:2px;font:inherit;font-size:12px;min-width:218px;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 15px,calc(100% - 10px) 15px;background-size:5px 5px;background-repeat:no-repeat}
+.select-wrap select:hover{border-color:#3c5055}
+.sheet{display:grid;grid-template-columns:1fr .9fr 2.2fr 1fr;border:1px solid var(--line);background:var(--panel);margin-bottom:10px}
+.sheet-cell{padding:9px 14px;border-right:1px solid var(--line);min-width:0}
+.sheet-cell:last-child{border-right:0}
+.sheet-cell span{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.09em;color:var(--dim);text-transform:uppercase}
+.sheet-cell strong,.sheet-cell code{display:block;font-size:12px;color:var(--ink);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.sheet-cell strong em{font-style:normal;font-family:var(--sans);font-size:9.5px;color:var(--dim);margin-left:5px}
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:9px}
+.metric{background:var(--panel);border:1px solid var(--line);padding:12px 14px 11px;min-width:0;position:relative;overflow:hidden}
+.metric::after{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--line-2)}
+.metric.positive::after{background:rgba(111,179,168,.75)}
+.metric.negative::after{background:rgba(211,139,127,.75)}
+.metric-label{font-size:10px;color:var(--muted);display:flex;justify-content:space-between;gap:8px;letter-spacing:.03em;white-space:nowrap}
+.metric-label em{font-style:normal;font-family:var(--mono);font-size:8.5px;color:var(--dim)}
+.metric-value{font-family:var(--mono);font-size:26px;line-height:1.15;margin-top:6px;letter-spacing:-.02em;color:var(--ink)}
+.metric-value.pos{color:#a9d0c2}
+.metric-value.neg{color:#dda79c}
+.metric-sub{font-size:9.5px;color:var(--dim);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.verdict-panel{border:1px solid var(--line);background:var(--panel);padding:13px 16px;margin-bottom:12px}
+.verdict-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:9px}
+.verdict-desc{font-size:11.5px;color:var(--muted);max-width:900px;margin:0;line-height:1.6}
+.checks{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+.check{display:flex;align-items:flex-start;gap:6px;border:1px solid var(--line);padding:7px 8px;background:var(--panel-2);min-width:0}
+.check .mark{font-family:var(--sans);font-size:13px;line-height:1.18;color:var(--green);flex:none}
+.check.fail .mark{color:var(--red)}
+.check .ct{font-size:9.5px;color:var(--ink-2);line-height:1.4;min-width:0}
+.check .cv{display:block;font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:1px}
+.verdict-foot{display:flex;gap:18px;flex-wrap:wrap;margin-top:9px;padding-top:8px;border-top:1px dashed var(--line);font-size:9.5px;color:var(--dim)}
+.verdict-foot b{font-family:var(--mono);color:var(--ink-2);font-weight:500}
+
+/* ---------- charts ---------- */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.chart-panel{min-width:0}
+.chart-box{height:252px;padding:8px 10px 6px;position:relative}
+.chart-box.tall{height:304px}
+.chart-box canvas{display:block;width:100%;height:100%;cursor:crosshair;touch-action:pan-y}
+.chart-legend{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:10px;color:var(--muted);padding:7px 16px 0}
+.chart-legend i{width:12px;height:2px;display:inline-block;vertical-align:middle;margin-right:5px}
+.chart-legend b{font-family:var(--mono);color:var(--ink-2);font-weight:500}
+.chart-legend .swatch{width:9px;height:9px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+/* ---------- correlation ---------- */
+.corr-layout{display:grid;grid-template-columns:minmax(0,1fr) 338px;gap:11px;align-items:start}
+.heat-wrap{padding:2px 12px 8px;overflow-x:auto}
+.heat-wrap canvas{display:block;margin:0 auto;max-width:none}
+.grad-legend{display:flex;align-items:center;gap:9px;padding:2px 16px 12px;font-size:9.5px;color:var(--dim);font-family:var(--mono)}
+.grad{flex:1;height:8px;border:1px solid var(--line-2);min-width:80px}
+.grad-ticks{display:flex;justify-content:space-between;padding:0 16px 10px;font-family:var(--mono);font-size:9px;color:var(--dim)}
+.side-stack{display:flex;flex-direction:column;gap:11px}
+.side-panel{padding:14px 16px}
+.side-panel h3{font-size:12px;font-weight:600;margin:0 0 7px;color:var(--ink)}
+.side-panel p{font-size:10.5px;line-height:1.7;color:var(--muted);margin:0 0 8px}
+.callout{border-left:2px solid var(--gold);background:rgba(214,178,121,.07);padding:8px 11px;color:var(--ink-2);font-size:11.5px;line-height:1.65;margin:0 0 9px}
+.pairs{display:flex;flex-direction:column}
+.pair{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px solid #1a2528;font-size:10.5px}
+.pair:last-child{border-bottom:0}
+.pair .pn{color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pair .pv{font-family:var(--mono);color:var(--gold);text-align:right;white-space:nowrap}
+.pair .pv.hot{color:#e0a89d}
+.pair .tag-mini{font-family:var(--mono);font-size:8px;color:var(--dim);border:1px solid var(--line);padding:0 4px;margin-left:5px}
+.statline{display:flex;gap:16px;flex-wrap:wrap;margin:6px 0 10px;font-size:9.5px;color:var(--dim)}
+.statline b{font-family:var(--mono);color:var(--ink-2);font-size:12px;font-weight:500;margin-left:3px}
+
+/* ---------- neutralization ---------- */
+.resid-layout{display:grid;grid-template-columns:minmax(0,1fr) 348px;gap:11px;align-items:start}
+.resid-chart{padding:4px 8px 4px;position:relative}
+.resid-chart canvas{display:block;width:100%;cursor:crosshair;touch-action:pan-y}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:10.5px;margin:6px 0 8px}
+.kv .k{color:var(--dim);white-space:nowrap}
+.kv .v{font-family:var(--mono);color:var(--ink-2);text-align:right}
+.proxy-list{display:flex;flex-wrap:wrap;gap:5px;margin:5px 0 8px}
+.mini-tag{font-family:var(--mono);font-size:9px;border:1px solid var(--line);padding:2px 6px;color:var(--muted);background:var(--panel-2)}
+.mini-tag.on{color:var(--gold);border-color:rgba(214,178,121,.4)}
+.mini-tag.hot{color:#dda79c;border-color:rgba(211,139,127,.32)}
+.side-note{font-size:9.5px;color:var(--dim);line-height:1.6;margin:6px 0 0}
+
+/* ---------- tradable ---------- */
+.tradable-top{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:10px}
+.tr-stats{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:11px}
+.tr-stat{background:var(--panel);padding:9px 13px;min-width:0}
+.tr-stat span{font-size:8.5px;color:var(--dim);display:block;letter-spacing:.06em;text-transform:uppercase;font-family:var(--mono)}
+.tr-stat b{font-family:var(--mono);font-size:16px;font-weight:500;display:block;margin-top:3px;white-space:nowrap}
+.nav-legend{padding-top:8px;padding-bottom:2px}
+
+/* ---------- method ---------- */
+.method-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;align-items:start}
+.method-sec{padding:15px 18px 16px}
+.sec-head{display:flex;align-items:baseline;gap:9px;margin-bottom:7px}
+.sec-no{font-family:var(--mono);font-size:9px;color:var(--gold);letter-spacing:.05em}
+.method-sec h3{font-size:13.5px;font-weight:600;margin:0;color:var(--ink)}
+.method-sec h4{font-size:10.5px;font-weight:600;color:var(--ink-2);margin:11px 0 4px;letter-spacing:.02em}
+.method-sec p{font-size:11px;line-height:1.78;color:var(--muted);margin:0 0 7px}
+.method-sec p strong{color:var(--ink-2);font-weight:500}
+.method-sec code{font-family:var(--mono);font-size:10px;color:var(--gold);background:rgba(214,178,121,.06);padding:1px 4px}
+.method-list{margin:3px 0 7px;padding-left:15px;color:var(--muted);font-size:10.5px;line-height:1.75}
+.method-list li{margin:2px 0}
+.method-list li::marker{color:var(--gold-2)}
+.method-list b{color:var(--ink-2);font-weight:500}
+.formula-block{font-family:var(--mono);font-size:10.5px;color:var(--ink-2);border-left:2px solid var(--line-2);
+  padding:6px 10px;background:#0e1517;margin:5px 0 9px;overflow-x:auto;white-space:nowrap}
+.split-lines{display:flex;flex-direction:column;margin:6px 0 9px;border-top:1px solid var(--line)}
+.split-line{display:grid;grid-template-columns:44px 1fr auto;gap:9px;align-items:baseline;padding:5px 0;border-bottom:1px solid #1a2528;font-size:10px}
+.split-line .sl-lab{color:var(--teal);font-weight:600;font-size:10.5px}
+.split-line.valid .sl-lab{color:var(--gold)}
+.split-line.test .sl-lab{color:var(--red)}
+.split-line code{font-family:var(--mono);font-size:9.5px;color:var(--ink-2);background:none;padding:0}
+.split-line .sl-note{font-size:9px;color:var(--dim);white-space:nowrap}
+.limit-panel{grid-column:1/-1;border-color:rgba(211,139,127,.26);background:linear-gradient(180deg,rgba(211,139,127,.045),rgba(211,139,127,.008))}
+.data-panel{grid-column:1/-1}
+.data-panel p{max-width:1000px}
+.limit-panel h3{color:#e0b2a8}
+.limit-panel .sec-no{color:var(--red)}
+.limit-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 22px}
+.limit-grid li{margin:4px 0}
+.foot-meta{font-family:var(--mono);font-size:9.5px;color:var(--dim);letter-spacing:.02em}
+
+/* ---------- tooltip / loader ---------- */
+.chart-tip{position:fixed;z-index:200;pointer-events:none;background:#0a1012;border:1px solid #3b4c50;
+  padding:7px 9px;font-size:10px;color:var(--ink-2);box-shadow:0 10px 28px rgba(0,0,0,.5);
+  min-width:138px;max-width:330px;line-height:1.55}
+.chart-tip .tt-date{font-family:var(--mono);color:var(--gold);font-size:9.5px;margin-bottom:4px;letter-spacing:.02em;white-space:nowrap}
+.chart-tip .tt-row{display:flex;align-items:center;justify-content:space-between;gap:14px;white-space:nowrap}
+.chart-tip .tt-name{display:flex;align-items:center;gap:5px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis}
+.chart-tip .tt-dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex:none}
+.chart-tip b{font-family:var(--mono);font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
+.chart-tip .tt-note{margin-top:4px;padding-top:4px;border-top:1px solid #243236;color:var(--dim);font-size:9px;line-height:1.5}
+.loader{position:fixed;inset:0;background:rgba(11,16,18,.95);display:grid;place-items:center;z-index:100;padding:20px}
+.loader-card{border:1px solid var(--line-2);background:var(--panel);padding:21px 24px;font-size:11.5px;color:var(--muted);max-width:640px;line-height:1.8}
+.loader-card h3{color:var(--ink);font-family:var(--serif);font-size:18px;font-weight:600;margin:0 0 7px}
+.loader-card p{margin:0 0 7px}
+.loader-card code{font-family:var(--mono);color:var(--gold);background:rgba(214,178,121,.06);padding:1px 4px;font-size:10.5px}
+.loader-card .err{color:#e0a89d}
+
+/* ---------- footer ---------- */
+.site-foot{border-top:1px solid var(--line);padding:13px 0 28px;display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.02em}
+.site-foot span{max-width:100%}
+
+/* ---------- responsive ---------- */
+@media(max-width:1180px){
+  .corr-layout,.resid-layout{grid-template-columns:1fr}
+  .side-stack{display:grid;grid-template-columns:1fr 1fr;align-items:start}
+  .metric-grid{grid-template-columns:repeat(2,1fr)}
+  .checks{grid-template-columns:repeat(3,1fr)}
+  .method-grid{grid-template-columns:1fr}
+  .limit-panel{grid-column:auto}
+  .sheet{grid-template-columns:1fr 1fr}
+  .sheet-cell:nth-child(2){border-right:0}
+  .sheet-cell:nth-child(-n+2){border-bottom:1px solid var(--line)}
+}
+@media(max-width:900px){
+  .wrap{padding:0 18px}
+  h1{font-size:28px}
+  .split-strip{grid-template-columns:1fr}
+  .chart-grid{grid-template-columns:1fr}
+  .tr-stats{grid-template-columns:repeat(3,1fr)}
+  .limit-grid{grid-template-columns:1fr}
+  .toolbar{align-items:flex-start}
+  .hint{text-align:left}
+}
+@media(max-width:680px){
+  body{font-size:13px}
+  .wrap{padding:0 14px}
+  h1{font-size:23px}
+  h1 .sub{display:block;font-size:.6em;margin-top:3px;white-space:normal}
+  .masthead{padding-top:22px}
+  .kicker{font-size:8.5px}
+  .page-head h2{font-size:21px}
+  .panel-head{flex-direction:column;gap:4px}
+  .panel-sub{text-align:left;max-width:100%}
+  .metric-grid{grid-template-columns:1fr 1fr;gap:7px}
+  .metric-value{font-size:21px}
+  .checks{grid-template-columns:1fr 1fr}
+  .side-stack{grid-template-columns:1fr}
+  .sheet{grid-template-columns:1fr}
+  .sheet-cell{border-right:0;border-bottom:1px solid var(--line)}
+  .sheet-cell:last-child{border-bottom:0}
+  .tr-stats{grid-template-columns:repeat(2,1fr)}
+  .chart-box{height:220px}
+  .chart-box.tall{height:250px}
+  .select-wrap select{min-width:190px}
+  .split .dates{font-size:11px}
+  .verdict-foot{gap:10px}
+  .checks .ct{font-size:9px}
+}
 </style>
 </head>
 <body>
-<header><div><h1>因子研究台 <span class="badge">ISSUE 5</span></h1><p>横截面预测能力 · 分组收益 · 滚动稳定性 · 交易摩擦</p></div><div class="meta" id="meta">读取研究结果…</div></header>
-<main>
-<section class="controls">
-<label>因子<select id="factor"></select></label><label>预测周期<select id="horizon"><option value="1d">1日</option><option value="5d">5日</option><option value="20d">20日</option></select></label><label>滚动窗口<select id="window"><option>21</option><option>63</option><option>126</option><option>252</option></select></label>
-<label>起始日期<input id="start" type="date"></label><label>结束日期<input id="end" type="date"></label><label>单边成本 (bp)<input id="cost" type="number" min="0" max="100" step="1" value="10"></label><button class="button" id="download">下载当前指标 CSV</button><span class="tip">窗口以交易日计；颜色方向表示因子定义为“值越高越强”</span>
-</section>
-<section class="stats" id="stats"></section>
-<section class="grid">
-<div class="panel"><header>RankIC 时间序列</header><div class="chart" id="icChart"></div></div>
-<div class="panel"><header>滚动 RankIC / RankICIR</header><div class="chart" id="rollingChart"></div></div>
-<div class="panel"><header>五分组未来收益</header><div class="chart" id="quantChart"></div></div>
-<div class="panel"><header>因子横截面相关性（最新截面）</header><div class="chart" id="corrChart"></div></div>
-<div class="panel"><header>模型诊断：IPCA 风格 / 全局切分树</header><div class="table-wrap"><table class="table" id="models"></table></div></div><div class="panel wide"><header>因子综合评价 <span class="tip">表格展示全样本统计；成本后价差按顶部输入即时重估</span></header><div class="table-wrap"><table class="table" id="summary"></table></div></div>
-</section>
-<div class="notes" id="notes"></div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="kicker">
+      <span>Factor Research Workbench</span>
+      <span class="stamp" id="genStamp">ISSUE 05</span>
+    </div>
+    <h1>因子研究工作台 <span class="dot">·</span> <span class="sub">第五讲 因子与因子评价</span></h1>
+    <div class="meta-line" id="metaLine"><span class="meta-item">正在载入研究结果…</span></div>
+    <div class="split-strip" id="splitStrip" aria-label="训练、验证、测试切分区间"></div>
+  </div>
+</header>
+
+<nav class="tabbar" aria-label="报告章节">
+  <div class="wrap tabs" id="tabsBar" role="tablist">
+    <button class="tab" id="tab-overview" data-tab="overview" role="tab" aria-selected="true" aria-controls="panel-overview"><span class="ti">01</span>总览</button>
+    <button class="tab" id="tab-single" data-tab="single" role="tab" aria-selected="false" aria-controls="panel-single"><span class="ti">02</span>单因子</button>
+    <button class="tab" id="tab-corr" data-tab="corr" role="tab" aria-selected="false" aria-controls="panel-corr"><span class="ti">03</span>相关性</button>
+    <button class="tab" id="tab-neutral" data-tab="neutral" role="tab" aria-selected="false" aria-controls="panel-neutral"><span class="ti">04</span>中性化</button>
+    <button class="tab" id="tab-tradable" data-tab="tradable" role="tab" aria-selected="false" aria-controls="panel-tradable"><span class="ti">05</span>交易验证</button>
+    <button class="tab" id="tab-method" data-tab="method" role="tab" aria-selected="false" aria-controls="panel-method"><span class="ti">06</span>方法</button>
+  </div>
+</nav>
+
+<main class="wrap" id="main">
+  <!-- 01 总览 -->
+  <section class="page" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
+    <div class="page-head">
+      <div>
+        <div class="eyebrow">01 / Overview</div>
+        <h2>因子总览</h2>
+      </div>
+      <p class="lede">按训练期冻结方向汇总全样本与三段样本外的预测能力。点击表头排序，点击任意行进入单因子诊断。</p>
+    </div>
+    <div class="toolbar">
+      <div class="chips" id="verdictCounts"></div>
+      <div class="hint" id="overviewHint">正在载入…</div>
+    </div>
+    <section class="panel" aria-label="因子汇总表">
+      <div id="overviewTableWrap"></div>
+      <div class="panel-foot">
+        <b>读表：</b>IC、HAC t、ICIR、正 IC 比例与三段 RankIC 均已乘训练期冻结方向 d（+1 或 −1），原始值 = 表中值 × d，悬停单元格可见原始符号。
+        单调性 mono5 本批次为 null，按未通过处理并显示为 —。判定门槛与样本量约束见「方法」。
+      </div>
+    </section>
+  </section>
+
+  <!-- 02 单因子 -->
+  <section class="page" id="panel-single" role="tabpanel" aria-labelledby="tab-single" hidden>
+    <div class="page-head">
+      <div>
+        <div class="eyebrow">02 / Single Factor</div>
+        <h2>单因子诊断</h2>
+      </div>
+      <div class="select-row">
+        <label class="select-wrap" for="sfSelect">因子 <select id="sfSelect"></select></label>
+      </div>
+    </div>
+
+    <div class="sheet" id="sfSheet"></div>
+    <div class="metric-grid" id="sfMetrics"></div>
+
+    <div class="verdict-panel">
+      <div class="verdict-top">
+        <span id="sfVerdictBadge"></span>
+        <p class="verdict-desc" id="sfVerdictDesc"></p>
+      </div>
+      <div class="checks" id="sfChecks"></div>
+      <div class="verdict-foot" id="sfFoot"></div>
+    </div>
+
+    <div class="chart-grid">
+      <section class="panel chart-panel" aria-label="累计 RankIC">
+        <div class="panel-head">
+          <div class="panel-title"><span class="no">01</span>累计 RankIC</div>
+          <div class="panel-sub" id="cumSub">逐日 RankIC 累加 · 方向调整后</div>
+        </div>
+        <div class="chart-box"><canvas id="cumChart" aria-label="累计 RankIC 曲线"></canvas></div>
+        <div class="panel-foot">阴影为训练 / 验证 / 测试切分区；悬停查看日期与数值。</div>
+      </section>
+
+      <section class="panel chart-panel" aria-label="63 日滚动 RankIC">
+        <div class="panel-head">
+          <div class="panel-title"><span class="no">02</span>63 日滚动 RankIC</div>
+          <div class="panel-sub" id="rollSub">63 日滑动均值 · min_periods=20</div>
+        </div>
+        <div class="chart-box"><canvas id="rollChart" aria-label="63 日滚动 RankIC 曲线"></canvas></div>
+        <div class="panel-foot">滚动均值用于观察稳定性，不构成独立样本检验。</div>
+      </section>
+
+      <section class="panel chart-panel" aria-label="IC 衰减">
+        <div class="panel-head">
+          <div class="panel-title"><span class="no">03</span>IC 衰减</div>
+          <div class="panel-sub" id="decaySub">未来 1 / 5 / 10 / 20 日</div>
+        </div>
+        <div class="chart-box"><canvas id="decayChart" aria-label="IC 衰减柱状图"></canvas></div>
+        <div class="panel-foot">均为方向调整后的 RankIC；多日标签重叠，柱高只作描述。</div>
+      </section>
+
+      <section class="panel chart-panel" aria-label="五分组平均未来收益">
+        <div class="panel-head">
+          <div class="panel-title"><span class="no">04</span>五分组平均未来收益</div>
+          <div class="panel-sub" id="quantSub">按原始因子值 Q1 → Q5</div>
+        </div>
+        <div class="chart-box"><canvas id="quantChart" aria-label="五分组平均未来收益柱状图"></canvas></div>
+        <div class="panel-foot">Q1 为最低因子值组，Q5 为最高；分组按原始值排序，不乘方向 d。</div>
+      </section>
+    </div>
+  </section>
+
+  <!-- 03 相关性 -->
+  <section class="page" id="panel-corr" role="tabpanel" aria-labelledby="tab-corr" hidden>
+    <div class="page-head">
+      <div>
+        <div class="eyebrow">03 / Correlation</div>
+        <h2>因子相关性</h2>
+      </div>
+      <p class="lede">日度截面相关的时间均值，用于检查因子之间的信息重合。发散色阶以 0 为白、±1 为深色。</p>
+    </div>
+    <div class="corr-layout">
+      <section class="panel" aria-label="因子相关热力图">
+        <div class="panel-head">
+          <div class="panel-title"><span class="no">01</span>平均截面相关矩阵</div>
+          <div class="panel-sub">格子悬停查看因子名与相关系数</div>
+        </div>
+        <div class="heat-wrap" id="heatWrap"><canvas id="corrHeat" aria-label="因子相关热力图"></canvas></div>
+        <div class="grad-legend"><span>−1</span><div class="grad" id="corrGrad"></div><span>+1</span></div>
+        <div class="grad-ticks"><span>完全负相关</span><span>0</span><span>完全正相关</span></div>
+      </section>
+      <aside class="side-stack">
+        <section class="panel side-panel">
+          <div class="callout">|corr| &gt; 0.8 视为高度冗余。</div>
+          <p>高冗余意味着两个因子提供的独立横截面信息有限。组合中应避免重复暴露，或先做正交化再检验增量。</p>
+          <div class="statline" id="corrStats"></div>
+          <h3>高冗余因子对</h3>
+          <div class="pairs" id="corrPairs"></div>
+          <p class="side-note">相关系数为日度截面秩相关的时序均值；−1.000 表示方向相反的镜像因子，按绝对值计入冗余。这里只是描述性检查，不替代组合优化中的协方差估计。</p>
+        </section>
+        <section class="panel side-panel">
+          <h3>读图</h3>
+          <p>对角线恒为 1。颜色越深表示相关越强；近白格子接近不相关。热力图只反映平均关系，不能说明相关性在牛熊或风格切换时保持不变。</p>
+          <p>点击左侧「单因子」可以查看同一因子在控制规模、流动性、波动与动量后的残差 IC。</p>
+        </section>
+      </aside>
+    </div>
+  </section>
+
+  <!-- 04 中性化 -->
+  <section class="page" id="panel-neutral" role="tabpanel" aria-labelledby="tab-neutral" hidden>
+    <div class="page-head">
+      <div>
+        <div class="eyebrow">04 / Neutralization</div>
+        <h2>中性化残差</h2>
+      </div>
+      <p class="lede">控制 log 价格、log 成交额、20 日波动与 20 日动量后，因子还剩多少横截面预测力。</p>
+    </div>
+    <div class="resid-layout">
+      <section class="panel" aria-label="原始与残差 RankIC">
+        <div class="panel-head">
+          <div class="panel-title"><span class="no">01</span>原始 vs 残差 RankIC</div>
+          <div class="panel-sub" id="residSub">横向分组柱；右侧标注残差 HAC t</div>
+        </div>
+        <div class="chart-legend">
+          <span><i class="swatch" style="background:#6f8fa6"></i>原始 RankIC</span>
+          <span><i class="swatch" style="background:#d6b279"></i>残差 RankIC</span>
+          <span><i class="swatch" style="background:#8fc7a2"></i>|t| ≥ 2</span>
+        </div>
+        <div class="resid-chart"><canvas id="residChart" aria-label="原始与残差 RankIC 横向柱状图"></canvas></div>
+        <div class="panel-foot" id="residFoot">按原始 RankIC 降序排列；悬停查看原始值、残差值、HAC t 与样本日数。</div>
+      </section>
+      <aside class="side-stack">
+        <section class="panel side-panel">
+          <div class="callout">残差 IC 接近 0 说明该因子主要是规模 / 流动性 / 波动的代理。</div>
+          <p>控制变量：log 收盘价、log1p(20 日均成交额)、20 日波动、20 日动量。逐日做横截面秩回归，取残差秩与未来收益秩的相关系数，再对残差 IC 序列计算 Newey-West HAC t。</p>
+          <div id="residSummary"></div>
+          <h3>当前因子</h3>
+          <div class="kv" id="residDetail"></div>
+          <h3>代理迹象</h3>
+          <p class="side-note">|残差 IC| &lt; 0.01 仅作描述性标记，不是统计检验结论。</p>
+          <div class="proxy-list" id="residProxies"></div>
+          <h3>保留独立信息</h3>
+          <div class="proxy-list" id="residIndep"></div>
+        </section>
+        <section class="panel side-panel">
+          <h3>解释边界</h3>
+          <p>这只是规模、流动性、波动、动量的有限代理控制，<strong>不是行业中性化</strong>，也不是严格的 Barra 风格中性化。残差 IC 不显著并不证明因子无效，只说明在当前代理集合下没有增量信息。</p>
+          <p>原始与残差 IC 均保留原始符号；负值表示因子值与未来收益负相关，方向 d 见「单因子」页。</p>
+        </section>
+      </aside>
+    </div>
+  </section>
+
+  <!-- 05 交易验证 -->
+  <section class="page" id="panel-tradable" role="tabpanel" aria-labelledby="tab-tradable" hidden>
+    <div class="page-head">
+      <div>
+        <div class="eyebrow">05 / Tradability</div>
+        <h2>交易验证</h2>
+      </div>
+      <div class="select-row">
+        <label class="select-wrap" for="trSelect">曲线因子 <select id="trSelect"></select></label>
+      </div>
+    </div>
+    <div class="tr-stats" id="trStats"></div>
+    <section class="panel" aria-label="可交易性汇总表">
+      <div id="trTableWrap"></div>
+      <div class="panel-foot">
+        基准为同池等权、零成本、同一调仓日；成本为区间累计金额；残仓市值为期末未平仓持仓市值。点击任意行切换下方的净值曲线。
+      </div>
+    </section>
+    <section class="panel chart-panel" style="margin-top:11px" aria-label="策略净值曲线">
+      <div class="panel-head">
+        <div class="panel-title"><span class="no">02</span>策略净值 vs 同池等权基准</div>
+        <div class="panel-sub" id="navSub"></div>
+      </div>
+      <div class="chart-legend nav-legend" id="navLegend"></div>
+      <div class="chart-box tall"><canvas id="navChart" aria-label="策略与基准净值曲线"></canvas></div>
+      <div class="panel-foot">净值为日收盘口径，已扣佣金、卖出印花税与双边滑点；基准不扣费。悬停查看逐日净值与相对基准。</div>
+    </section>
+  </section>
+
+  <!-- 06 方法 -->
+  <section class="page" id="panel-method" role="tabpanel" aria-labelledby="tab-method" hidden>
+    <div class="page-head">
+      <div>
+        <div class="eyebrow">06 / Method</div>
+        <h2>方法附录</h2>
+      </div>
+      <p class="lede">口径、切分、统计修正、交易约束与局限。所有结论都应结合这一页阅读。</p>
+    </div>
+    <div class="method-grid" id="methodBody"></div>
+  </section>
 </main>
+
+<footer class="wrap site-foot">
+  <span id="footMeta">因子研究工作台 · 第五讲 · data/dashboard.json</span>
+  <span>本地 HTTP 服务：python -m http.server 8000 · 仅供课程研究，不构成投资建议</span>
+</footer>
+
+<div class="chart-tip" id="chartTip" role="status" hidden></div>
+
+<div class="loader" id="loader">
+  <div class="loader-card">
+    <h3>载入研究结果</h3>
+    <p>正在读取 <code>data/dashboard.json</code>。</p>
+    <p>若长时间停留在此页，请确认：本文件通过本地 HTTP 服务打开，并且同目录下存在 <code>data/dashboard.json</code>。直接双击以 <code>file://</code> 打开会被浏览器的同源策略拦截。</p>
+  </div>
+</div>
+
+<div class="loader" id="fatal" hidden>
+  <div class="loader-card">
+    <h3>无法载入数据</h3>
+    <p class="err" id="fatalMsg"></p>
+    <p>请在本目录执行 <code>python -m http.server 8000</code>，然后访问 <code>http://localhost:8000/</code>。页面不会从任何外部地址获取资源。</p>
+  </div>
+</div>
+
 <script>
-const COLORS=['#087f78','#d89b2b','#487ba8','#d45b55','#73858b'];let DATA;
-const $=id=>document.getElementById(id);const num=(x,d=3)=>Number.isFinite(+x)?(+x).toFixed(d):'—';const pct=(x,d=2)=>Number.isFinite(+x)?(100*+x).toFixed(d)+'%':'—';
-function svgLine(target,series,{zero=false,labels=true}={}){const el=$(target),W=700,H=230,L=48,R=12,T=14,B=28;let all=series.flatMap(s=>s.values.map(p=>p.y).filter(Number.isFinite));if(!all.length){el.innerHTML='<div class="empty">该筛选区间暂无数据</div>';return}let lo=Math.min(...all),hi=Math.max(...all);if(zero){lo=Math.min(lo,0);hi=Math.max(hi,0)}if(hi-lo<1e-8){hi+=.01;lo-=.01}const x=i=>L+i*(W-L-R)/Math.max(series[0].values.length-1,1),y=v=>T+(hi-v)*(H-T-B)/(hi-lo);let grid='';for(let k=0;k<5;k++){let v=lo+(hi-lo)*k/4,yy=y(v);grid+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="#e5ebea"/><text x="${L-7}" y="${yy+3}" text-anchor="end" class="legend">${num(v,2)}</text>`}if(zero&&lo<0&&hi>0)grid+=`<line x1="${L}" x2="${W-R}" y1="${y(0)}" y2="${y(0)}" stroke="#8a999b" stroke-dasharray="4 4"/>`;let paths=series.map(s=>{let d='',active=false;s.values.forEach((p,i)=>{if(!Number.isFinite(p.y)){active=false;return}d+=(active?'L':'M')+x(i)+' '+y(p.y)+' ';active=true});return `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.8"/>`}).join('');let xlabels='';if(labels){const vals=series[0].values,n=4;for(let k=0;k<n;k++){const i=Math.round((vals.length-1)*k/(n-1)),lab=vals[i]?.x||'';xlabels+=`<text x="${x(i)}" y="${H-7}" text-anchor="middle" class="legend">${lab.slice(0,7)}</text>`}}let legends=series.map((s,i)=>`<text x="${L+i*145}" y="10" class="legend" fill="${s.color}">━ ${s.name}</text>`).join('');el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img">${grid}${paths}${xlabels}${legends}</svg>`}
-function barChart(target,labels,values,colors){const el=$(target),W=700,H=230,L=48,R=12,T=20,B=35,lo=Math.min(0,...values),hi=Math.max(0,...values),span=hi-lo||1,y=v=>T+(hi-v)*(H-T-B)/span,zero=y(0),slot=(W-L-R)/values.length,bw=slot*.55;let grid='';for(let k=0;k<5;k++){let v=lo+span*k/4,yy=y(v);grid+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="#e5ebea"/><text x="${L-7}" y="${yy+3}" text-anchor="end" class="legend">${pct(v,1)}</text>`}let bars=values.map((v,i)=>{let yy=y(v),x=L+i*slot+(slot-bw)/2;return `<rect x="${x}" y="${Math.min(yy,zero)}" width="${bw}" height="${Math.max(1,Math.abs(zero-yy))}" fill="${colors[i]}"/><text x="${x+bw/2}" y="${H-13}" text-anchor="middle" class="legend">${labels[i]}</text>`}).join('');el.innerHTML=`<svg viewBox="0 0 ${W} ${H}">${grid}${bars}</svg>`}
-function filtered(){const f=$('factor').value,h=$('horizon').value,s=$('start').value,e=$('end').value;return DATA.ic_series.filter(x=>x.factor===f&&x.horizon===h&&(!s||x.date>=s)&&(!e||x.date<=e))}
-function rolling(vals,window,key,mode='mean'){return vals.map((p,i)=>{let sub=vals.slice(Math.max(0,i-window+1),i+1).map(x=>x[key]).filter(Number.isFinite);if(sub.length<Math.max(10,Math.ceil(window*.7)))return{x:p.date,y:NaN};let m=sub.reduce((a,b)=>a+b,0)/sub.length,sd=Math.sqrt(sub.reduce((a,b)=>a+(b-m)**2,0)/Math.max(1,sub.length-1));return{x:p.date,y:mode==='mean'?m:(sd?m/sd:NaN)}})}
-function render(){const f=$('factor').value,h=$('horizon').value,rows=filtered(),metric=DATA.summary.filter(x=>x.factor===f&&x.horizon===h)[0];if(!metric)return;const win=+$('window').value,cost=+$('cost').value||0;const spread=metric.q5_q1_spread,net=spread-2*cost/10000*metric.avg_daily_turnover;
-const cards=[['RankIC 均值',num(metric.rank_ic_mean,4)],['RankICIR',num(metric.rank_icir,3)],['正 RankIC 比例',pct(metric.rank_ic_positive_ratio)],['Q5 − Q1',pct(spread)],['平均日换手',pct(metric.avg_daily_turnover)],['成本后价差估算',pct(net)]];$('stats').innerHTML=cards.map(([a,b])=>`<div class="stat"><span>${a}</span><strong>${b}</strong></div>`).join('');
-svgLine('icChart',[{name:'RankIC',color:COLORS[0],values:rows.map(x=>({x:x.date,y:x.rank_ic}))}],{zero:true});
-const rm=rolling(rows,win,'rank_ic','mean'),rr=rolling(rows,win,'rank_ic','ir');svgLine('rollingChart',[{name:`${win}日均值`,color:COLORS[0],values:rm},{name:`${win}日RankICIR`,color:COLORS[1],values:rr}],{zero:true});
-const q=DATA.quantiles.filter(x=>x.factor===f&&x.horizon===h).sort((a,b)=>a.quantile-b.quantile);barChart('quantChart',q.map(x=>'Q'+x.quantile),q.map(x=>x.mean_return),COLORS);
-const cm=DATA.factor_correlation,labels=cm.factors;const el=$('corrChart');let W=700,H=230,cell=Math.min(38,(H-40)/labels.length);let out=`<svg viewBox="0 0 ${W} ${H}">`;labels.forEach((a,i)=>{out+=`<text x="${190+i*cell}" y="${26+i*cell}" class="legend" text-anchor="end">${a}</text>`;labels.forEach((b,j)=>{let v=cm.matrix[i][j],alpha=Math.abs(v),color=v>=0?'8,127,120':'212,91,85';out+=`<rect x="${200+j*cell}" y="${8+i*cell}" width="${cell-2}" height="${cell-2}" fill="rgba(${color},${.12+.75*alpha})"><title>${a} × ${b}: ${num(v,2)}</title></rect><text x="${200+j*cell+cell/2}" y="${23+i*cell}" text-anchor="middle" font-size="8" fill="${alpha>.55?'white':'#233'}">${num(v,1)}</text>`})});out+='</svg>';el.innerHTML=out;
-const model=DATA.model_diagnostics||{};const ipca=model.ipca||{},tree=model.pricing_tree||{};const ablation=model.ablation||[];const modelRows=[['IPCA 样本外预测 R²',ipca.oos_predictive_r2],['IPCA 样本外定价拟合 R²',ipca.oos_pricing_r2],['全局切分树样本外预测 R²',tree.oos_predictive_r2],['树首轮切分因子',tree.split_feature]];let mhtml='<thead><tr><th>诊断项</th><th>结果</th></tr></thead><tbody>'+modelRows.map(([a,b])=>`<tr><td>${a}</td><td>${typeof b==='number'?num(b,4):(b||'—')}</td></tr>`).join('');if(ablation.length){mhtml+='<tr><th colspan="2">逐因子删除的样本外边际变化</th></tr>'+ablation.map(x=>`<tr><td>${x.factor}</td><td>IPCA Δ预测R² ${num(x.ipca_delta_predictive_r2,4)} · 树 ΔR² ${num(x.tree_delta_predictive_r2,4)}</td></tr>`).join('')}mhtml+='</tbody>';if(model.protocol)mhtml+=`<caption style="caption-side:bottom;font-size:11px;color:#64747d;padding:6px 10px;text-align:left">${model.protocol.label}：前${Math.round((model.protocol.train_fraction||0)*100)}%训练，测试自 ${model.protocol.test_start} 起，抽样 ${model.protocol.sampled_dates} 日 × ${model.protocol.sampled_assets} 股（步长 ${model.protocol.date_step}）</caption>`;$('models').innerHTML=mhtml;const rowsTable=DATA.summary.filter(x=>x.horizon===h).map(x=>`<tr><td>${x.name}<br><span class="badge">${x.factor}</span></td><td>${num(x.ic_mean,4)}</td><td>${num(x.rank_ic_mean,4)}</td><td>${num(x.rank_icir,2)}</td><td>${pct(x.rank_ic_positive_ratio)}</td><td>${pct(x.q5_q1_spread)}</td><td>${num(x.spread_sharpe_annualized,2)}</td><td>${pct(x.avg_daily_turnover)}</td><td>${pct(x.q5_q1_spread-2*cost/10000*x.avg_daily_turnover)}</td></tr>`).join('');$('summary').innerHTML=`<thead><tr><th>因子</th><th>IC</th><th>RankIC</th><th>RankICIR</th><th>正IC率</th><th>Q5-Q1</th><th>价差Sharpe*</th><th>日换手</th><th>成本后价差**</th></tr></thead><tbody>${rowsTable}</tbody>`;
+'use strict';
+
+/* =====================================================================
+   常量与状态
+   ===================================================================== */
+const TABS = ['overview', 'single', 'corr', 'neutral', 'tradable', 'method'];
+const C = {
+  gold: '#d6b279',
+  gold2: '#b3925c',
+  teal: '#6fb3a8',
+  blue: '#7f9fc2',
+  red: '#d38b7f',
+  green: '#8fc7a2',
+  grid: '#1d2a2d',
+  axis: '#33464a',
+  text: '#7f9094',
+  dim: '#5d7075',
+  ink: '#e9ece7',
+  ink2: '#c3ccc8'
+};
+const VERDICT_META = {
+  '好因子': {cls: 'v-good', rank: 0, desc: '五项判据全部通过且测试期样本充足：样本外 IC、稳定性、单调性与成本后超额同时成立。'},
+  '有潜力': {cls: 'v-potential', rank: 1, desc: '测试期方向与显著性成立，但仍有判据未通过；需要结合相关性、中性化与交易约束进一步确认。'},
+  '证据不足': {cls: 'v-insufficient', rank: 2, desc: '测试期样本或显著性不足；当前证据不足以支持稳定的样本外预测。'},
+  '不合格': {cls: 'v-bad', rank: 3, desc: '测试期方向失效或成本后净超额为负；不建议进入组合。'}
+};
+const CHECK_META = {
+  'test_rank_ic>=0.02': {label: '测试期 RankIC ≥ 0.02'},
+  'test_t>=2': {label: '测试期 HAC t ≥ 2'},
+  'test_pos>=0.55': {label: '测试期正 IC 比例 ≥ 55%'},
+  'mono>=0.6': {label: '五分组单调性 ≥ 0.6'},
+  'net_excess>0': {label: '交易验证净超额 > 0'}
+};
+const SPLIT_META = [
+  {key: 'train', label: '训练', en: 'TRAIN', note: '方向冻结 · 阈值校准'},
+  {key: 'valid', label: '验证', en: 'VALID', note: '稳健性检查 · 模型选择'},
+  {key: 'test', label: '测试', en: 'TEST', note: '一次性样本外评估'}
+];
+const state = {
+  data: null,
+  factors: [],
+  byKey: new Map(),
+  tradableByKey: new Map(),
+  factor: null,
+  tab: 'overview',
+  sort: {key: 'ic5', dir: -1}
+};
+
+/* =====================================================================
+   基础工具
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+const isNum = v => typeof v === 'number' && Number.isFinite(v);
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+function esc(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
 }
-function download(){let h=$('horizon').value,cost=+$('cost').value||0;const rows=DATA.summary.filter(x=>x.horizon===h).map(x=>({...x,net_spread_mean_est:x.q5_q1_spread-2*cost/10000*x.avg_daily_turnover,cost_bps_one_way:cost}));const keys=Object.keys(rows[0]),csv=[keys.join(','),...rows.map(r=>keys.map(k=>JSON.stringify(r[k]??'')).join(','))].join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'}));a.download=`factor_metrics_${h}.csv`;a.click();URL.revokeObjectURL(a.href)}
-async function init(){try{const r=await fetch('data/dashboard.json');if(!r.ok)throw new Error('找不到 data/dashboard.json，请先运行 analyze.py');DATA=await r.json();$('meta').textContent=`${DATA.meta.start} 至 ${DATA.meta.end} · ${DATA.meta.n_assets.toLocaleString()} 只证券 · ${DATA.meta.n_dates} 个交易日`;$('factor').innerHTML=DATA.factors.map(x=>`<option value="${x.id}">${x.name} (${x.id})</option>`).join('');$('start').value=DATA.meta.start;$('end').value=DATA.meta.end;document.querySelectorAll('select,input').forEach(x=>x.addEventListener('change',render));$('download').onclick=download;$('notes').innerHTML='<b>口径说明</b>：'+DATA.meta.notes.join('　');render()}catch(e){$('meta').textContent='尚无分析结果';document.querySelector('main').insertAdjacentHTML('afterbegin',`<div class="notes">${e.message}</div>`)}}
+
+function signed(v, digits = 2) {
+  if (!isNum(v)) return '—';
+  if (Math.abs(v) < 0.5 * Math.pow(10, -digits)) return (0).toFixed(digits);
+  return (v > 0 ? '+' : '') + v.toFixed(digits);
+}
+const fmtIC = v => signed(v, 4);
+const fmtT = v => signed(v, 2);
+const fmtICIR = v => signed(v, 3);
+const fmtPct = (v, digits = 2) => isNum(v) ? signed(v * 100, digits) + '%' : '—';
+const fmtNum = (v, digits = 2) => isNum(v) ? v.toFixed(digits) : '—';
+const fmtInt = v => isNum(v) ? Math.round(v).toLocaleString('en-US') : '—';
+
+function fmtQ(v) {
+  if (!isNum(v)) return '—';
+  if (v === 0) return '0';
+  if (Math.abs(v) < 1e-3) return v.toExponential(2);
+  return v.toFixed(4);
+}
+
+function fmtMoney(v) {
+  if (!isNum(v)) return '—';
+  const a = Math.abs(v);
+  if (a >= 1e8) return '¥' + (v / 1e8).toFixed(2) + ' 亿';
+  if (a >= 1e4) return '¥' + (v / 1e4).toFixed(1) + ' 万';
+  return '¥' + Math.round(v).toLocaleString('en-US');
+}
+
+function fmtTurnover(v) {
+  return isNum(v) ? v.toFixed(1) + '×' : '—';
+}
+
+function fmtAxisIC(v) {
+  if (!isNum(v)) return '—';
+  const a = Math.abs(v);
+  if (a >= 100) return v.toFixed(0);
+  if (a >= 10) return v.toFixed(1);
+  if (a >= 1) return v.toFixed(2);
+  if (a >= 0.01) return v.toFixed(3);
+  if (a === 0) return '0';
+  return v.toFixed(4);
+}
+const fmtAxisPct = v => isNum(v) ? (v * 100).toFixed(1) + '%' : '—';
+
+function fmtNav(v) {
+  return isNum(v) ? v.toFixed(4) : '—';
+}
+
+function shortName(name, max = 12) {
+  const s = String(name || '');
+  return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
+function fitText(ctx, text, maxWidth) {
+  let s = String(text || '');
+  if (ctx.measureText(s).width <= maxWidth) return s;
+  while (s.length > 1 && ctx.measureText(s + '…').width > maxWidth) s = s.slice(0, -1);
+  return s + '…';
+}
+
+function dirOf(f) {
+  return f && f.direction === -1 ? -1 : 1;
+}
+
+function factorName(key) {
+  const f = state.byKey.get(key);
+  return f ? f.name : key;
+}
+
+function badgeHTML(verdict) {
+  const meta = VERDICT_META[verdict] || {cls: 'v-neutral'};
+  return '<span class="vbadge ' + meta.cls + '">' + esc(verdict || '未知') + '</span>';
+}
+
+function signClass(v) {
+  if (!isNum(v)) return '';
+  return v > 0 ? 'pos' : (v < 0 ? 'neg' : '');
+}
+
+function splitCount(key) {
+  const rows = (state.data && state.data.splits ? state.data.splits : []).filter(s => s.split === key && isNum(s.n));
+  return rows.length ? rows[0].n : null;
+}
+
+/* =====================================================================
+   数据载入
+   ===================================================================== */
+async function loadData() {
+  const res = await fetch('data/dashboard.json', {cache: 'no-store'});
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + (res.statusText || '') + ' · data/dashboard.json');
+  const buf = await res.arrayBuffer();
+  let text;
+  try {
+    text = new TextDecoder('utf-8', {fatal: true}).decode(buf);
+  } catch (utf8Err) {
+    try {
+      text = new TextDecoder('gbk').decode(buf);
+    } catch (gbkErr) {
+      text = new TextDecoder('utf-8').decode(buf);
+    }
+  }
+  text = text.replace(/^\uFEFF/, '');
+  // Python 的 json.dump 可能写出 NaN / Infinity，浏览器 JSON.parse 不接受。
+  text = text.replace(/([:,])\s*-?(?:NaN|Infinity)\b/g, '$1null');
+  return JSON.parse(text);
+}
+
+function prepareData(raw) {
+  if (!raw || typeof raw !== 'object') throw new Error('dashboard.json 顶层不是对象');
+  if (!Array.isArray(raw.factors)) throw new Error('dashboard.json 缺少 factors 数组');
+  raw.meta = raw.meta || {};
+  raw.splits = Array.isArray(raw.splits) ? raw.splits : [];
+  raw.tradable = Array.isArray(raw.tradable) ? raw.tradable : [];
+  raw.corr = raw.corr || {keys: [], matrix: []};
+  raw.ic = raw.ic || {};
+  raw.residual = raw.residual || {};
+  raw.curves = raw.curves || {};
+  state.data = raw;
+  state.factors = raw.factors.slice();
+  state.byKey = new Map(state.factors.map(f => [f.key, f]));
+  state.tradableByKey = new Map(raw.tradable.map(r => [r.factor, r]));
+  state.factor = state.factors.length ? state.factors[0].key : null;
+  state.sort = {key: 'ic5', dir: -1};
+}
+
+/* =====================================================================
+   页头 / 切分色块
+   ===================================================================== */
+function renderHeader() {
+  const m = state.data.meta || {};
+  $('genStamp').textContent = m.generated ? 'ISSUE 05 · ' + m.generated : 'ISSUE 05';
+  const period = Array.isArray(m.period) && m.period.length ? m.period.join(' → ') : '—';
+  const evalRange = m.eval_start && m.eval_end ? m.eval_start + ' → ' + m.eval_end : '—';
+  const items = [
+    ['样本区间', period],
+    ['证券 / 交易日', fmtInt(m.n_codes) + ' 只 / ' + fmtInt(m.n_days) + ' 日'],
+    ['样本外评估', evalRange],
+    ['标签口径', m.label || '—'],
+    ['费用口径', m.costs || '—']
+  ];
+  $('metaLine').innerHTML = items.map(([k, v]) =>
+    '<span class="meta-item"><em>' + esc(k) + '</em>' + esc(v) + '</span>'
+  ).join('');
+  const metaBits = [];
+  metaBits.push(state.factors.length + ' 个因子');
+  if (isNum(m.n_codes)) metaBits.push(fmtInt(m.n_codes) + ' 只证券');
+  if (isNum(m.n_days)) metaBits.push(fmtInt(m.n_days) + ' 个交易日');
+  $('footMeta').textContent = '因子研究工作台 · 第五讲 · ' + metaBits.join(' · ') +
+    ' · 数据生成 ' + (m.generated || '—') + ' · data/dashboard.json';
+}
+
+function renderSplitStrip() {
+  const m = state.data.meta || {};
+  const splits = m.splits || {};
+  $('splitStrip').innerHTML = SPLIT_META.map(s => {
+    const range = Array.isArray(splits[s.key]) ? splits[s.key] : [];
+    const n = splitCount(s.key);
+    return '<div class="split ' + s.key + '">' +
+      '<div class="split-top"><span class="lab">' + esc(s.label) + ' <em>' + esc(s.en) + '</em></span>' +
+      '<span class="n">' + (n != null ? fmtInt(n) + ' 个 IC 日' : '') + '</span></div>' +
+      '<div class="dates">' + esc(range[0] || '—') + ' → ' + esc(range[1] || '—') + '</div>' +
+      '<div class="note">' + esc(s.note) + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+/* =====================================================================
+   标签页
+   ===================================================================== */
+function switchTab(tab, opts) {
+  opts = opts || {};
+  if (!TABS.includes(tab)) tab = 'overview';
+  state.tab = tab;
+  TABS.forEach(id => {
+    const btn = $('tab-' + id);
+    const panel = $('panel-' + id);
+    const on = id === tab;
+    if (btn) {
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      btn.tabIndex = on ? 0 : -1;
+    }
+    if (panel) panel.hidden = !on;
+  });
+  hideTip();
+  if (opts.hash !== false) {
+    try { history.replaceState(null, '', '#' + tab); } catch (err) { /* file:// 或受限环境 */ }
+  }
+  renderTab(tab);
+  if (opts.scroll !== false) {
+    const main = $('main');
+    if (main) main.scrollIntoView({block: 'start'});
+  }
+}
+
+function renderTab(tab) {
+  if (!state.data) return;
+  if (tab === 'overview') renderOverview();
+  else if (tab === 'single') renderSingle();
+  else if (tab === 'corr') renderCorrelation();
+  else if (tab === 'neutral') renderResidual();
+  else if (tab === 'tradable') renderTradable();
+  else if (tab === 'method') renderMethod();
+}
+
+function buildSelectors() {
+  const opts = state.factors.map(f =>
+    '<option value="' + esc(f.key) + '">' + esc(f.name) + ' · ' + esc(f.key) + '</option>'
+  ).join('');
+  ['sfSelect', 'trSelect'].forEach(id => {
+    const sel = $(id);
+    if (sel) sel.innerHTML = opts;
+  });
+  syncSelectors();
+}
+
+function syncSelectors() {
+  ['sfSelect', 'trSelect'].forEach(id => {
+    const sel = $(id);
+    if (sel && state.factor && sel.value !== state.factor) sel.value = state.factor;
+  });
+}
+
+function setFactor(key, opts) {
+  opts = opts || {};
+  if (!state.byKey.has(key)) return;
+  state.factor = key;
+  syncSelectors();
+  if (opts.tab) switchTab(opts.tab);
+  else renderTab(state.tab);
+}
+
+/* =====================================================================
+   总览
+   ===================================================================== */
+const OVERVIEW_COLS = [
+  {key: 'name', label: '因子名', width: '150px', align: 'left', get: f => f.name},
+  {key: 'category', label: '类别', width: '90px', align: 'left', get: f => f.category || ''},
+  {key: 'formula', label: '公式', width: '208px', align: 'left', get: f => f.formula || ''},
+  {key: 'direction', label: '方向', width: '58px', get: f => dirOf(f)},
+  {key: 'ic5', label: 'RankIC (5日)', width: '102px', get: f => isNum(f.ic5) ? dirOf(f) * f.ic5 : null, raw: f => f.ic5},
+  {key: 't5', label: 'HAC t', width: '76px', get: f => isNum(f.t5) ? dirOf(f) * f.t5 : null, raw: f => f.t5},
+  {key: 'icir5', label: 'ICIR', width: '72px', get: f => isNum(f.icir5) ? dirOf(f) * f.icir5 : null, raw: f => f.icir5},
+  {key: 'pos5', label: '正 IC 比例', width: '92px', get: f => isNum(f.pos5) ? (dirOf(f) > 0 ? f.pos5 : 1 - f.pos5) : null, raw: f => f.pos5},
+  {key: 'mono5', label: '单调性', width: '76px', get: f => isNum(f.mono5) ? dirOf(f) * f.mono5 : null, raw: f => f.mono5},
+  {key: 'train', label: '训练 RankIC', width: '88px', get: f => isNum(f.train) ? dirOf(f) * f.train : null, raw: f => f.train},
+  {key: 'valid', label: '验证 RankIC', width: '88px', get: f => isNum(f.valid) ? dirOf(f) * f.valid : null, raw: f => f.valid},
+  {key: 'test', label: '测试 RankIC', width: '88px', get: f => isNum(f.test) ? dirOf(f) * f.test : null, raw: f => f.test},
+  {key: 'verdict', label: '判定', width: '94px', get: f => f.verdict || ''}
+];
+
+function overviewValue(f, col) {
+  return col.get(f);
+}
+
+function sortFactorsForTable() {
+  const col = OVERVIEW_COLS.find(c => c.key === state.sort.key) || OVERVIEW_COLS[4];
+  const dir = state.sort.dir;
+  return state.factors.slice().sort((a, b) => {
+    const va = overviewValue(a, col);
+    const vb = overviewValue(b, col);
+    const na = va == null || (typeof va === 'number' && !Number.isFinite(va));
+    const nb = vb == null || (typeof vb === 'number' && !Number.isFinite(vb));
+    if (na && nb) return 0;
+    if (na) return 1;
+    if (nb) return -1;
+    if (col.key === 'verdict') {
+      const ra = VERDICT_META[va] ? VERDICT_META[va].rank : 99;
+      const rb = VERDICT_META[vb] ? VERDICT_META[vb].rank : 99;
+      return dir * (ra - rb);
+    }
+    if (typeof va === 'string') return dir * va.localeCompare(vb, 'zh-CN');
+    return dir * (va - vb);
+  });
+}
+
+function renderOverview() {
+  if (!state.factors.length) {
+    $('overviewTableWrap').innerHTML = '<div class="empty-state">没有因子结果。</div>';
+    $('verdictCounts').innerHTML = '';
+    $('overviewHint').textContent = '';
+    return;
+  }
+  const counts = {};
+  state.factors.forEach(f => {
+    const v = f.verdict || '未知';
+    counts[v] = (counts[v] || 0) + 1;
+  });
+  const known = Object.keys(VERDICT_META);
+  const extra = Object.keys(counts).filter(k => !VERDICT_META[k]);
+  $('verdictCounts').innerHTML =
+    '<span class="chip total"><b>' + state.factors.length + '</b> 个因子</span>' +
+    known.map(k => {
+      const meta = VERDICT_META[k];
+      return '<span class="chip ' + meta.cls + '"><i class="dot"></i>' + esc(k) +
+        ' <b>' + (counts[k] || 0) + '</b></span>';
+    }).join('') +
+    extra.map(k => '<span class="chip"><i class="dot"></i>' + esc(k) + ' <b>' + counts[k] + '</b></span>').join('');
+  $('overviewHint').textContent = '点击表头排序 · 点击行进入单因子诊断 · 默认按方向调整后的 5 日 RankIC 降序';
+
+  const rows = sortFactorsForTable();
+  const colgroup = '<colgroup>' + OVERVIEW_COLS.map(c => '<col style="width:' + c.width + '">').join('') + '</colgroup>';
+  const thead = '<thead><tr>' + OVERVIEW_COLS.map(c => {
+    const active = state.sort.key === c.key;
+    const ind = active ? (state.sort.dir === 1 ? '↑' : '↓') : '↕';
+    const aria = active ? (state.sort.dir === 1 ? 'ascending' : 'descending') : 'none';
+    return '<th scope="col" data-sort="' + c.key + '" class="' + (c.align === 'left' ? 'txt' : '') +
+      '" aria-sort="' + aria + '" title="点击按' + esc(c.label) + '排序">' + esc(c.label) +
+      '<span class="sort-ind">' + ind + '</span></th>';
+  }).join('') + '</tr></thead>';
+
+  const tbody = '<tbody>' + rows.map(f => {
+    const d = dirOf(f);
+    const ic = isNum(f.ic5) ? d * f.ic5 : null;
+    const t = isNum(f.t5) ? d * f.t5 : null;
+    const icir = isNum(f.icir5) ? d * f.icir5 : null;
+    const pos = isNum(f.pos5) ? (d > 0 ? f.pos5 : 1 - f.pos5) : null;
+    const mono = isNum(f.mono5) ? d * f.mono5 : null;
+    const train = isNum(f.train) ? d * f.train : null;
+    const valid = isNum(f.valid) ? d * f.valid : null;
+    const test = isNum(f.test) ? d * f.test : null;
+    return '<tr data-factor="' + esc(f.key) + '" tabindex="0" title="查看 ' + esc(f.name) + ' 的单因子诊断">' +
+      '<td class="txt"><div class="fname">' + esc(f.name) + '</div><div class="fkey">' + esc(f.key) + '</div></td>' +
+      '<td class="txt muted">' + esc(f.category || '—') + '</td>' +
+      '<td class="txt"><code class="formula" title="' + esc(f.formula || '') + '">' + esc(f.formula || '—') + '</code></td>' +
+      '<td class="mono">' + (d > 0 ? '+1' : '−1') + '</td>' +
+      '<td class="mono ' + signClass(ic) + '" title="原始 RankIC(5日) = ' + fmtIC(f.ic5) + '；方向 d = ' + (d > 0 ? '+1' : '−1') + '">' + fmtIC(ic) + '</td>' +
+      '<td class="mono ' + signClass(t) + '" title="原始 HAC t(5日) = ' + fmtT(f.t5) + '；已乘方向">' + fmtT(t) + '</td>' +
+      '<td class="mono ' + signClass(icir) + '" title="原始 ICIR = ' + fmtICIR(f.icir5) + '；已乘方向">' + fmtICIR(icir) + '</td>' +
+      '<td class="mono" title="原始正 IC 比例 = ' + fmtPct(f.pos5) + '；已按方向调整">' + fmtPct(pos) + '</td>' +
+      '<td class="mono" title="' + (isNum(f.mono5) ? '单调性 = ' + fmtT(f.mono5) : 'mono5 本批次为 null（缺失）') + '">' + (isNum(mono) ? fmtT(mono) : '—') + '</td>' +
+      '<td class="mono ' + signClass(train) + '" title="原始训练期 RankIC = ' + fmtIC(f.train) + '">' + fmtIC(train) + '</td>' +
+      '<td class="mono ' + signClass(valid) + '" title="原始验证期 RankIC = ' + fmtIC(f.valid) + '">' + fmtIC(valid) + '</td>' +
+      '<td class="mono ' + signClass(test) + '" title="原始测试期 RankIC = ' + fmtIC(f.test) + '；方向调整后即 test_signed">' + fmtIC(test) + '</td>' +
+      '<td>' + badgeHTML(f.verdict) + '</td>' +
+      '</tr>';
+  }).join('') + '</tbody>';
+
+  $('overviewTableWrap').innerHTML = '<div class="table-scroll"><table class="data overview">' +
+    colgroup + thead + tbody + '</table></div>';
+}
+
+/* =====================================================================
+   单因子
+   ===================================================================== */
+function renderSingle() {
+  const f = state.byKey.get(state.factor) || state.factors[0];
+  if (!f) {
+    $('sfSheet').innerHTML = '';
+    $('sfMetrics').innerHTML = '<div class="empty-state">没有因子结果。</div>';
+    $('sfChecks').innerHTML = '';
+    $('sfFoot').innerHTML = '';
+    return;
+  }
+  state.factor = f.key;
+  syncSelectors();
+  const d = dirOf(f);
+  const nIC = state.data.ic && state.data.ic[f.key] && Array.isArray(state.data.ic[f.key].dates)
+    ? state.data.ic[f.key].dates.length : null;
+
+  $('sfSheet').innerHTML =
+    '<div class="sheet-cell"><span>类别</span><strong>' + esc(f.category || '—') + '</strong></div>' +
+    '<div class="sheet-cell"><span>方向（训练期冻结）</span><strong class="mono">' + (d > 0 ? '+1' : '−1') +
+      '<em>方向不随验证/测试翻转</em></strong></div>' +
+    '<div class="sheet-cell"><span>因子定义</span><code title="' + esc(f.formula || '') + '">' + esc(f.formula || '—') + '</code></div>' +
+    '<div class="sheet-cell"><span>平均截面</span><strong class="mono">' + fmtInt(f.avg_names) + ' 只/日</strong></div>';
+
+  const ic = isNum(f.ic5) ? d * f.ic5 : null;
+  const t = isNum(f.t5) ? d * f.t5 : null;
+  const icir = isNum(f.icir5) ? d * f.icir5 : null;
+  const lsSharpe = isNum(f.ls_sharpe5) ? d * f.ls_sharpe5 : null;
+  const pos = isNum(f.pos5) ? (d > 0 ? f.pos5 : 1 - f.pos5) : null;
+  const testT = isNum(f.test_t) ? d * f.test_t : null;
+  const ls = isNum(f.ls5) ? d * f.ls5 : null;
+
+  const cards = [
+    {label: 'RankIC (5日)', tag: '×d', value: fmtIC(ic), cls: signClass(ic),
+      sub: '正 IC 比例 ' + fmtPct(pos) + ' · ' + (nIC != null ? fmtInt(nIC) + ' 个截面日' : '—')},
+    {label: 'HAC t', tag: 'Newey-West', value: fmtT(t), cls: signClass(t),
+      sub: '全样本 t · 测试期 ' + fmtT(testT)},
+    {label: 'ICIR', tag: 'mean / sd', value: fmtICIR(icir), cls: signClass(icir),
+      sub: 'RankIC 稳定性；未年化'},
+    {label: '多空 Sharpe', tag: 'Q5 − Q1', value: fmtT(lsSharpe), cls: signClass(lsSharpe),
+      sub: '平均价差 ' + fmtPct(ls) + ' / 5日'}
+  ];
+  $('sfMetrics').innerHTML = cards.map(c =>
+    '<div class="metric">' +
+      '<div class="metric-label">' + esc(c.label) + '<em>' + esc(c.tag) + '</em></div>' +
+      '<div class="metric-value ' + c.cls + '">' + c.value + '</div>' +
+      '<div class="metric-sub">' + esc(c.sub) + '</div>' +
+    '</div>'
+  ).join('');
+  // 卡片左侧色条由数值方向决定
+  $$('#sfMetrics .metric').forEach((el, i) => {
+    const v = [ic, t, icir, lsSharpe][i];
+    if (isNum(v)) el.classList.add(v >= 0 ? 'positive' : 'negative');
+  });
+
+  renderVerdict(f, d);
+  renderSingleCharts(f, d);
+}
+
+function checkDetail(key, f, d, trad) {
+  switch (key) {
+    case 'test_rank_ic>=0.02': return '实测 ' + fmtIC(isNum(f.test) ? d * f.test : null);
+    case 'test_t>=2': return '实测 ' + fmtT(isNum(f.test_t) ? d * f.test_t : null);
+    case 'test_pos>=0.55': return '实测 ' + fmtPct(isNum(f.pos5) ? (d > 0 ? f.pos5 : 1 - f.pos5) : null);
+    case 'mono>=0.6': return f.mono5 == null ? 'mono5 = —（null）' : '实测 ' + fmtT(d * f.mono5);
+    case 'net_excess>0': return trad ? '实测 ' + fmtPct(trad.excess) : '无交易验证';
+    default: return '';
+  }
+}
+
+function renderVerdict(f, d) {
+  const meta = VERDICT_META[f.verdict] || {cls: 'v-neutral', desc: '未识别的判定。'};
+  $('sfVerdictBadge').innerHTML = badgeHTML(f.verdict);
+  $('sfVerdictDesc').textContent = meta.desc;
+  const trad = state.tradableByKey.get(f.key);
+  const checks = f.checks || {};
+  const keys = Object.keys(checks);
+  $('sfChecks').innerHTML = keys.map(k => {
+    const pass = checks[k] === true;
+    const info = CHECK_META[k] || {label: k};
+    return '<div class="check ' + (pass ? 'pass' : 'fail') + '" title="原始判据：' + esc(k) + '">' +
+      '<span class="mark">' + (pass ? '✓' : '✗') + '</span>' +
+      '<div class="ct">' + esc(info.label) + '<span class="cv">' + esc(checkDetail(k, f, d, trad)) + '</span></div>' +
+      '</div>';
+  }).join('');
+  if (!keys.length) $('sfChecks').innerHTML = '<div class="empty-state">没有 checks 数据。</div>';
+
+  const nTest = splitCount('test');
+  const bits = [
+    ['BH-FDR q (5日)', fmtQ(f.fdr5)],
+    ['测试期观测', nTest != null ? fmtInt(nTest) + ' 日' : '—'],
+    ['平均截面', fmtInt(f.avg_names) + ' 只/日'],
+    ['方向 d', d > 0 ? '+1' : '−1']
+  ];
+  $('sfFoot').innerHTML = bits.map(([k, v]) =>
+    '<span>' + esc(k) + ' <b>' + esc(v) + '</b></span>'
+  ).join('');
+}
+
+function rollingMean(values, window, minPeriods) {
+  const out = [];
+  for (let i = 0; i < values.length; i++) {
+    if (!isNum(values[i])) {
+      out.push(null);
+      continue;
+    }
+    const start = Math.max(0, i - window + 1);
+    const sub = values.slice(start, i + 1).filter(isNum);
+    out.push(sub.length >= minPeriods ? sub.reduce((a, b) => a + b, 0) / sub.length : null);
+  }
+  return out;
+}
+
+function splitBands() {
+  const m = state.data.meta || {};
+  const splits = m.splits || {};
+  const colors = {train: 'rgba(111,179,168,.075)', valid: 'rgba(214,178,121,.075)', test: 'rgba(211,139,127,.06)'};
+  const labels = {train: '训练', valid: '验证', test: '测试'};
+  return SPLIT_META.map(s => {
+    const r = splits[s.key];
+    if (!Array.isArray(r) || r.length < 2) return null;
+    return {from: r[0], to: r[1], fill: colors[s.key], label: labels[s.key], color: s.key === 'train' ? C.teal : (s.key === 'valid' ? C.gold : C.red)};
+  }).filter(Boolean);
+}
+
+function renderSingleCharts(f, d) {
+  const ic = state.data.ic && state.data.ic[f.key];
+  const meta = state.data.meta || {};
+  const horizons = Array.isArray(meta.horizons) && meta.horizons.length ? meta.horizons : [1, 5, 10, 20];
+  const dLabel = d > 0 ? '+1' : '−1';
+  $('cumSub').textContent = '逐日 RankIC 累加 · 已乘方向 d = ' + dLabel;
+  $('decaySub').textContent = '未来 ' + horizons.join(' / ') + ' 日 · 方向调整后';
+  $('quantSub').textContent = '按原始因子值 Q1 → Q5 · ' +
+    (d < 0 ? 'd = −1，Q1 为预期多头' : 'd = +1，Q5 为预期多头');
+
+  if (!ic || !Array.isArray(ic.dates) || !ic.dates.length) {
+    ['cumChart', 'rollChart', 'decayChart', 'quantChart'].forEach(id => paintEmpty($(id), '该因子暂无图表数据'));
+    return;
+  }
+
+  const labels = ic.dates;
+  const daily = (ic.rank_ic || []).map(v => isNum(v) ? d * v : null);
+  let running = 0;
+  const cum = daily.map(v => {
+    if (!isNum(v)) return null;
+    running += v;
+    return running;
+  });
+  const ma = Array.isArray(ic.ma63) && ic.ma63.length
+    ? ic.ma63.map(v => isNum(v) ? d * v : null)
+    : rollingMean(daily, 63, 20);
+
+  drawLineChart($('cumChart'), {
+    labels: labels,
+    series: [{name: '累计 RankIC', color: C.gold, values: cum, fmt: v => signed(v, 2)}],
+    extra: [{name: '当日 RankIC', color: C.teal, values: daily, fmt: fmtIC}],
+    yFmt: fmtAxisIC,
+    yTicks: 5,
+    zeroLine: true,
+    bands: splitBands(),
+    top: 24,
+    empty: '该因子暂无 IC 序列'
+  });
+
+  drawLineChart($('rollChart'), {
+    labels: labels,
+    series: [{name: '63 日滚动 RankIC', color: C.teal, values: ma, fmt: fmtIC}],
+    yFmt: fmtAxisIC,
+    yTicks: 5,
+    zeroLine: true,
+    top: 18,
+    empty: '滚动窗口尚未形成'
+  });
+
+  const decay = horizons.map((h, i) => isNum(f.decay && f.decay[i]) ? f.decay[i] : null);
+  drawBarChart($('decayChart'), {
+    labels: horizons.map(h => h + ' 日'),
+    values: decay,
+    name: 'RankIC',
+    valueFmt: fmtIC,
+    yFmt: fmtAxisIC,
+    tipNote: '方向调整后的平均 RankIC',
+    empty: '该因子暂无衰减数据'
+  });
+
+  const q = Array.isArray(f.quantiles) ? f.quantiles : [];
+  drawBarChart($('quantChart'), {
+    labels: q.map((_, i) => 'Q' + (i + 1)),
+    values: q.map(v => isNum(v) ? v : null),
+    name: '平均未来收益',
+    valueFmt: fmtPct,
+    yFmt: fmtAxisPct,
+    tipNote: d < 0 ? '按原始因子值分组；d = −1 时 Q1 为预期多头' : '按原始因子值分组；d = +1 时 Q5 为预期多头',
+    empty: '该因子暂无分组收益数据'
+  });
+}
+
+/* =====================================================================
+   相关性
+   ===================================================================== */
+function getCorrPairs() {
+  const corr = state.data.corr || {keys: [], matrix: []};
+  const keys = corr.keys || [];
+  const matrix = corr.matrix || [];
+  const out = [];
+  for (let i = 0; i < keys.length; i++) {
+    for (let j = i + 1; j < keys.length; j++) {
+      const v = matrix[i] && matrix[i][j];
+      if (isNum(v)) out.push({a: keys[i], b: keys[j], v: v});
+    }
+  }
+  return out;
+}
+
+function renderCorrelation() {
+  const corr = state.data.corr || {keys: [], matrix: []};
+  const keys = corr.keys || [];
+  const pairs = getCorrPairs();
+  const hot = pairs.filter(p => Math.abs(p.v) >= 0.8).sort((a, b) => Math.abs(b.v) - Math.abs(a.v));
+  const avgAbs = pairs.length ? pairs.reduce((a, p) => a + Math.abs(p.v), 0) / pairs.length : null;
+
+  $('corrStats').innerHTML =
+    '<span>因子<b>' + keys.length + '</b></span>' +
+    '<span>平均 |ρ|<b>' + (avgAbs != null ? avgAbs.toFixed(3) : '—') + '</b></span>' +
+    '<span>高冗余对<b>' + hot.length + '</b></span>';
+
+  $('corrPairs').innerHTML = hot.length
+    ? hot.slice(0, 8).map(p => {
+        const mirror = Math.abs(p.v) >= 0.999;
+        return '<div class="pair"><span class="pn">' + esc(factorName(p.a)) + ' × ' + esc(factorName(p.b)) +
+          (mirror ? '<span class="tag-mini">镜像</span>' : '') + '</span>' +
+          '<span class="pv hot">' + p.v.toFixed(4) + '</span></div>';
+      }).join('')
+    : '<div class="empty-state" style="padding:14px 0">没有 |ρ| &gt; 0.8 的因子对。</div>';
+
+  $('corrGrad').style.background = heatGradientCSS();
+  const canvas = $('corrHeat');
+  canvas._hoverCell = null;
+  if (!keys.length || !corr.matrix.length) {
+    paintEmpty(canvas, '没有相关性矩阵');
+    return;
+  }
+  paintHeatmap(canvas, corr, null);
+}
+
+function heatRGB(v) {
+  const mid = [232, 229, 218];
+  const target = v >= 0 ? [47, 127, 119] : [142, 59, 51];
+  const t = Math.pow(Math.min(1, Math.abs(isNum(v) ? v : 0)), 0.62);
+  return mid.map((c, i) => Math.round(c + (target[i] - c) * t));
+}
+function heatColor(v) {
+  const rgb = heatRGB(v);
+  return 'rgb(' + rgb.join(',') + ')';
+}
+function heatGradientCSS() {
+  const stops = [];
+  for (let k = 0; k <= 20; k++) {
+    const v = -1 + 2 * k / 20;
+    stops.push(heatColor(v) + ' ' + (k * 5) + '%');
+  }
+  return 'linear-gradient(90deg,' + stops.join(',') + ')';
+}
+function luminance(rgb) {
+  return (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
+}
+
+function paintHeatmap(canvas, corr, hoverCell) {
+  const keys = corr.keys || [];
+  const matrix = corr.matrix || [];
+  const n = keys.length;
+  if (!n) return;
+  const wrap = canvas.parentElement;
+  if (!wrap) return;
+  // clientWidth 为 0 时(隐藏标签页/无可见视口)用兜底宽度, 避免图永远画不出来
+  const avail = Math.max(260, (wrap.clientWidth || 760) - 24);
+  const tmp = canvas.getContext('2d');
+  tmp.font = '10.5px "Segoe UI","Microsoft YaHei",sans-serif';
+  const names = keys.map(k => factorName(k));
+  const maxNameW = Math.max.apply(null, names.map(s => tmp.measureText(s).width));
+  const labelW = clamp(maxNameW + 16, 88, 158);
+  const right = clamp(maxNameW * 0.8, 30, 120);
+  const cell = clamp((avail - labelW - right) / n, 26, 52);
+  const total = labelW + right + cell * n;
+  const cssW = Math.max(avail, total);
+  const cssH = 112 + cell * n + 6;
+  canvas.style.width = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  const dims = prepareCanvas(canvas);
+  if (!dims) return;
+  const {ctx, w, h} = dims;
+  const left = labelW + Math.max(0, (cssW - total) / 2);
+  const top = 112;
+
+  // 列标签（旋转 45°）
+  ctx.font = '10.5px "Segoe UI","Microsoft YaHei",sans-serif';
+  ctx.textBaseline = 'middle';
+  const selectedKey = state.factor;
+  keys.forEach((k, j) => {
+    const x = left + (j + 0.5) * cell;
+    ctx.save();
+    ctx.translate(x, top - 10);
+    ctx.rotate(-Math.PI / 4);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = k === selectedKey ? C.gold : C.muted;
+    ctx.fillText(shortName(names[j], 13), 0, 0);
+    ctx.restore();
+    if (k === selectedKey) {
+      ctx.fillStyle = 'rgba(214,178,121,.7)';
+      ctx.fillRect(x - 1, top - 3, 2, 3);
+    }
+  });
+
+  // 行标签
+  ctx.font = '10.5px "Segoe UI","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  keys.forEach((k, i) => {
+    const y = top + (i + 0.5) * cell;
+    ctx.fillStyle = k === selectedKey ? C.gold : C.muted;
+    ctx.fillText(shortName(names[i], 13), left - 10, y);
+    if (k === selectedKey) {
+      ctx.fillStyle = 'rgba(214,178,121,.8)';
+      ctx.fillRect(left - 6, y - cell / 2 + 3, 2, cell - 6);
+    }
+  });
+
+  // 格子
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const v = matrix[i] ? matrix[i][j] : null;
+      const x = left + j * cell;
+      const y = top + i * cell;
+      const rgb = heatRGB(isNum(v) ? v : 0);
+      ctx.fillStyle = 'rgb(' + rgb.join(',') + ')';
+      ctx.fillRect(x + 0.5, y + 0.5, cell - 1, cell - 1);
+      if (isNum(v) && Math.abs(v) >= 0.8 && i !== j) {
+        ctx.strokeStyle = 'rgba(10,16,18,.62)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 1.5, y + 1.5, cell - 3, cell - 3);
+      }
+      if (cell >= 34 && isNum(v)) {
+        ctx.fillStyle = luminance(rgb) > 0.58 ? '#1a2326' : '#f1eee5';
+        ctx.font = '9px ' + 'Consolas,monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(v.toFixed(2), x + cell / 2, y + cell / 2 + 0.5);
+      }
+      if (hoverCell && hoverCell.r === i && hoverCell.c === j) {
+        ctx.strokeStyle = '#f7f3e8';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x + 1, y + 1, cell - 2, cell - 2);
+      }
+    }
+  }
+
+  canvas._geo = {left: left, top: top, cell: cell, n: n};
+  canvas._paint = function (hv) {
+    canvas._hoverCell = hv;
+    paintHeatmap(canvas, corr, hv);
+  };
+  bindPointer(canvas, function (e) {
+    const g = canvas._geo;
+    if (!g) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const c = Math.floor((x - g.left) / g.cell);
+    const r = Math.floor((y - g.top) / g.cell);
+    if (r < 0 || c < 0 || r >= g.n || c >= g.n) {
+      hideTip();
+      if (canvas._hoverCell) { canvas._hoverCell = null; canvas._paint(null); }
+      return;
+    }
+    if (!canvas._hoverCell || canvas._hoverCell.r !== r || canvas._hoverCell.c !== c) {
+      canvas._hoverCell = {r: r, c: c};
+      canvas._paint(canvas._hoverCell);
+    }
+    const v = matrix[r] ? matrix[r][c] : null;
+    const note = r === c ? '对角线（自相关）' : (isNum(v) && Math.abs(v) > 0.8 ? '|corr| &gt; 0.8 · 高度冗余' : '|corr| ≤ 0.8');
+    const html = '<div class="tt-date">' + esc(factorName(keys[r])) + ' × ' + esc(factorName(keys[c])) + '</div>' +
+      '<div class="tt-row"><span class="tt-name">平均截面相关</span><b>' + (isNum(v) ? v.toFixed(4) : '—') + '</b></div>' +
+      '<div class="tt-note">' + note + '</div>';
+    showTip(html, e.clientX, e.clientY);
+  }, function () {
+    hideTip();
+    canvas._hoverCell = null;
+    if (canvas._paint) canvas._paint(null);
+  });
+}
+
+/* =====================================================================
+   中性化
+   ===================================================================== */
+function renderResidual() {
+  const residual = state.data.residual || {};
+  const entries = state.factors
+    .filter(f => residual[f.key] && typeof residual[f.key] === 'object')
+    .map(f => ({key: f.key, name: f.name, r: residual[f.key]}));
+  entries.sort((a, b) => {
+    const va = isNum(a.r.raw_rankin) ? a.r.raw_rankin : -Infinity;
+    const vb = isNum(b.r.raw_rankin) ? b.r.raw_rankin : -Infinity;
+    return vb - va;
+  });
+
+  const canvas = $('residChart');
+  if (!entries.length) {
+    canvas.style.height = '240px';
+    paintEmpty(canvas, '没有中性化残差数据');
+    $('residDetail').innerHTML = '';
+    $('residProxies').innerHTML = '';
+    $('residIndep').innerHTML = '';
+    $('residSummary').innerHTML = '';
+    return;
+  }
+  const height = Math.max(260, entries.length * 31 + 58);
+  canvas.style.height = height + 'px';
+  paintResidual(canvas, entries, -1);
+
+  const nDays = entries.find(e => isNum(e.r.n)) ? entries.find(e => isNum(e.r.n)).r.n : null;
+  $('residSummary').innerHTML = '<div class="statline"><span>因子<b>' + entries.length + '</b></span>' +
+    '<span>残差样本<b>' + (nDays != null ? fmtInt(nDays) + ' 日' : '—') + '</b></span></div>';
+
+  const cur = entries.find(e => e.key === state.factor);
+  if (cur) {
+    const r = cur.r;
+    const retention = isNum(r.raw_rankin) && Math.abs(r.raw_rankin) > 1e-9 && isNum(r.resid_rankin)
+      ? r.resid_rankin / r.raw_rankin : null;
+    $('residDetail').innerHTML =
+      kvRow('因子', cur.name) +
+      kvRow('原始 RankIC', fmtIC(r.raw_rankin)) +
+      kvRow('残差 RankIC', fmtIC(r.resid_rankin)) +
+      kvRow('残差 HAC t', fmtT(r.resid_t)) +
+      kvRow('保留比例', retention != null ? fmtPct(retention, 1) : '—') +
+      kvRow('样本', isNum(r.n) ? fmtInt(r.n) + ' 日' : '—');
+  } else {
+    $('residDetail').innerHTML = '<div class="empty-state" style="padding:10px">该因子没有残差结果。</div>';
+  }
+
+  const proxies = entries.filter(e => isNum(e.r.resid_rankin) && Math.abs(e.r.resid_rankin) < 0.01);
+  const indep = entries.filter(e => isNum(e.r.resid_rankin) && Math.abs(e.r.resid_rankin) >= 0.015);
+  $('residProxies').innerHTML = proxies.length ? proxies.map(e =>
+    '<span class="mini-tag hot' + (e.key === state.factor ? ' on' : '') + '" title="残差 IC = ' + fmtIC(e.r.resid_rankin) +
+    '，t = ' + fmtT(e.r.resid_t) + '">' + esc(e.name) + '</span>'
+  ).join('') : '<span class="side-note">无</span>';
+  $('residIndep').innerHTML = indep.length ? indep.map(e =>
+    '<span class="mini-tag' + (e.key === state.factor ? ' on' : '') + '" title="残差 IC = ' + fmtIC(e.r.resid_rankin) +
+    '，t = ' + fmtT(e.r.resid_t) + '">' + esc(e.name) + '</span>'
+  ).join('') : '<span class="side-note">无</span>';
+}
+
+function kvRow(k, v) {
+  return '<div class="k">' + esc(k) + '</div><div class="v">' + esc(v) + '</div>';
+}
+
+function paintResidual(canvas, entries, hover) {
+  const dims = prepareCanvas(canvas);
+  if (!dims) return;
+  const {ctx, w, h} = dims;
+  const n = entries.length;
+  const m = {l: 124, r: 152, t: 26, b: 31};
+  const pw = w - m.l - m.r;
+  const ph = h - m.t - m.b;
+  if (pw < 40 || ph < 30) return;
+  const rowH = ph / n;
+  const vals = [];
+  entries.forEach(e => {
+    if (isNum(e.r.raw_rankin)) vals.push(e.r.raw_rankin);
+    if (isNum(e.r.resid_rankin)) vals.push(e.r.resid_rankin);
+  });
+  vals.push(0);
+  const dom = makeDomain(vals, {includeZero: true, ticks: 5, pad: 0.08});
+  if (!dom) return;
+  const xOf = v => m.l + (v - dom.lo) / (dom.hi - dom.lo) * pw;
+  const x0 = xOf(0);
+
+  ctx.fillStyle = 'rgba(6,10,12,.28)';
+  ctx.fillRect(m.l, m.t, pw, ph);
+
+  // 行背景
+  entries.forEach((e, i) => {
+    const y = m.t + i * rowH;
+    if (i === hover) {
+      ctx.fillStyle = 'rgba(255,255,255,.035)';
+      ctx.fillRect(m.l, y, pw, rowH);
+    }
+    if (e.key === state.factor) {
+      ctx.fillStyle = 'rgba(214,178,121,.055)';
+      ctx.fillRect(m.l, y, pw, rowH);
+      ctx.fillStyle = 'rgba(214,178,121,.8)';
+      ctx.fillRect(m.l - 6, y + 3, 2, rowH - 6);
+    }
+  });
+
+  // 纵向网格与 x 轴
+  ctx.font = '9.5px Consolas,monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  dom.ticks.forEach(v => {
+    const x = xOf(v);
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, m.t);
+    ctx.lineTo(x, m.t + ph);
+    ctx.stroke();
+    ctx.strokeStyle = C.axis;
+    ctx.beginPath();
+    ctx.moveTo(x, m.t + ph);
+    ctx.lineTo(x, m.t + ph + 4);
+    ctx.stroke();
+    ctx.fillStyle = C.text;
+    ctx.fillText(fmtAxisIC(v), x, m.t + ph + 7);
+  });
+  ctx.strokeStyle = C.axis;
+  ctx.beginPath();
+  ctx.moveTo(m.l, m.t + ph);
+  ctx.lineTo(m.l + pw, m.t + ph);
+  ctx.stroke();
+
+  // 零线
+  ctx.strokeStyle = 'rgba(214,178,121,.34)';
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(x0, m.t);
+  ctx.lineTo(x0, m.t + ph);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 行分隔
+  ctx.strokeStyle = 'rgba(255,255,255,.035)';
+  for (let i = 1; i < n; i++) {
+    const y = m.t + i * rowH;
+    ctx.beginPath();
+    ctx.moveTo(m.l, y);
+    ctx.lineTo(m.l + pw, y);
+    ctx.stroke();
+  }
+
+  // 柱
+  const bh = Math.min(9, rowH * 0.28);
+  entries.forEach((e, i) => {
+    const cy = m.t + (i + 0.5) * rowH;
+    const raw = e.r.raw_rankin;
+    const resid = e.r.resid_rankin;
+    if (isNum(raw)) {
+      const x = xOf(raw);
+      ctx.fillStyle = '#6f8fa6';
+      ctx.fillRect(Math.min(x0, x), cy - bh - 1.5, Math.max(1, Math.abs(x - x0)), bh);
+    }
+    if (isNum(resid)) {
+      const x = xOf(resid);
+      ctx.fillStyle = '#d6b279';
+      ctx.fillRect(Math.min(x0, x), cy + 1.5, Math.max(1, Math.abs(x - x0)), bh);
+    }
+  });
+
+  // 因子名
+  ctx.font = '10.5px "Segoe UI","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  entries.forEach((e, i) => {
+    const cy = m.t + (i + 0.5) * rowH;
+    ctx.fillStyle = e.key === state.factor ? C.gold : C.ink2;
+    ctx.fillText(fitText(ctx, e.name, m.l - 18), m.l - 10, cy);
+  });
+
+  // 残差 HAC t
+  ctx.font = '9.5px Consolas,monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  entries.forEach((e, i) => {
+    const cy = m.t + (i + 0.5) * rowH;
+    const t = e.r.resid_t;
+    ctx.fillStyle = isNum(t) && Math.abs(t) >= 2 ? '#a9cabb' : C.dim;
+    ctx.fillText('t ' + fmtT(t), m.l + pw + 12, cy);
+  });
+
+  canvas._geo = {m: m, rowH: rowH, n: n, entries: entries};
+  canvas._paint = function (hv) { paintResidual(canvas, entries, hv); };
+  bindPointer(canvas, function (e) {
+    const g = canvas._geo;
+    if (!g) return;
+    const rect = canvas.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const i = Math.floor((y - g.m.t) / g.rowH);
+    if (i < 0 || i >= g.n) {
+      hideTip();
+      if (canvas._hover !== -1) { canvas._hover = -1; canvas._paint(-1); }
+      return;
+    }
+    if (canvas._hover !== i) {
+      canvas._hover = i;
+      canvas._paint(i);
+    }
+    const item = g.entries[i];
+    const html = '<div class="tt-date">' + esc(item.name) + ' · ' + esc(item.key) + '</div>' +
+      '<div class="tt-row"><span class="tt-name"><i class="tt-dot" style="background:#6f8fa6"></i>原始 RankIC</span><b>' + fmtIC(item.r.raw_rankin) + '</b></div>' +
+      '<div class="tt-row"><span class="tt-name"><i class="tt-dot" style="background:#d6b279"></i>残差 RankIC</span><b>' + fmtIC(item.r.resid_rankin) + '</b></div>' +
+      '<div class="tt-row"><span class="tt-name">残差 HAC t</span><b>' + fmtT(item.r.resid_t) + '</b></div>' +
+      '<div class="tt-note">样本 ' + fmtInt(item.r.n) + ' 日 · 控制 log 价格 / log 成交额 / 20日波动 / 20日动量</div>';
+    showTip(html, e.clientX, e.clientY);
+  }, function () {
+    hideTip();
+    canvas._hover = -1;
+    if (canvas._paint) canvas._paint(-1);
+  });
+}
+
+/* =====================================================================
+   交易验证
+   ===================================================================== */
+function renderTradable() {
+  const rows = state.data.tradable.slice().sort((a, b) => {
+    const va = isNum(a.excess) ? a.excess : -Infinity;
+    const vb = isNum(b.excess) ? b.excess : -Infinity;
+    return vb - va;
+  });
+  const f = state.byKey.get(state.factor) || state.factors[0];
+  const sel = f ? state.tradableByKey.get(f.key) : null;
+  syncSelectors();
+
+  $('trTableWrap').innerHTML = rows.length
+    ? '<div class="table-scroll"><table class="data tradable">' +
+      '<colgroup>' +
+      ['150px', '84px', '76px', '84px', '84px', '88px', '68px', '82px', '110px', '110px', '74px']
+        .map(w => '<col style="width:' + w + '">').join('') +
+      '</colgroup>' +
+      '<thead><tr><th class="txt">因子</th><th>净收益</th><th>年化</th><th>基准</th><th>超额</th>' +
+      '<th>最大回撤</th><th>Sharpe</th><th>年化换手</th><th>成本</th><th>残仓市值</th><th>成交笔数</th></tr></thead>' +
+      '<tbody>' + rows.map(r => {
+        const on = f && r.factor === f.key;
+        return '<tr data-factor="' + esc(r.factor) + '" tabindex="0" class="' + (on ? 'selected' : '') + '" title="点击切换到 ' + esc(r.name || factorName(r.factor)) + '">' +
+          '<td class="txt"><div class="fname">' + esc(r.name || factorName(r.factor)) + '</div><div class="fkey">' + esc(r.factor) + '</div></td>' +
+          '<td class="mono ' + signClass(r.cum_return) + '">' + fmtPct(r.cum_return) + '</td>' +
+          '<td class="mono ' + signClass(r.ann_return) + '">' + fmtPct(r.ann_return) + '</td>' +
+          '<td class="mono">' + fmtPct(r.bench_return) + '</td>' +
+          '<td class="mono ' + signClass(r.excess) + '">' + fmtPct(r.excess) + '</td>' +
+          '<td class="mono neg">' + fmtPct(r.mdd) + '</td>' +
+          '<td class="mono ' + signClass(r.sharpe) + '">' + fmtT(r.sharpe) + '</td>' +
+          '<td class="mono">' + fmtTurnover(r.turnover_ann) + '</td>' +
+          '<td class="mono">' + fmtMoney(r.cost) + '</td>' +
+          '<td class="mono">' + fmtMoney(r.residual_value) + '</td>' +
+          '<td class="mono">' + fmtInt(r.n_trades) + '</td>' +
+          '</tr>';
+      }).join('') + '</tbody></table></div>'
+    : '<div class="empty-state">没有交易验证结果。</div>';
+
+  if (!f) {
+    $('trStats').innerHTML = '';
+    $('navSub').textContent = '';
+    $('navLegend').innerHTML = '';
+    paintEmpty($('navChart'), '没有可交易结果');
+    return;
+  }
+
+  if (!sel) {
+    $('trStats').innerHTML = '<div class="tr-stat"><span>状态</span><b>无账户结果</b></div>';
+    $('navSub').textContent = '';
+    $('navLegend').innerHTML = '';
+    paintEmpty($('navChart'), '该因子没有可交易净值曲线');
+    return;
+  }
+
+  const stats = [
+    ['区间净收益', fmtPct(sel.cum_return), signClass(sel.cum_return)],
+    ['超额 vs 基准', fmtPct(sel.excess), signClass(sel.excess)],
+    ['Sharpe', fmtT(sel.sharpe), signClass(sel.sharpe)],
+    ['最大回撤', fmtPct(sel.mdd), 'neg'],
+    ['交易成本', fmtMoney(sel.cost), ''],
+    ['残仓市值', fmtMoney(sel.residual_value), '']
+  ];
+  $('trStats').innerHTML = stats.map(([k, v, cls]) =>
+    '<div class="tr-stat"><span>' + esc(k) + '</span><b class="' + cls + '">' + esc(v) + '</b></div>'
+  ).join('');
+
+  const curve = state.data.curves && state.data.curves[f.key];
+  if (!curve || !Array.isArray(curve.dates) || !curve.dates.length) {
+    $('navSub').textContent = '该因子没有净值曲线';
+    $('navLegend').innerHTML = '';
+    paintEmpty($('navChart'), '该因子没有可交易净值曲线');
+    return;
+  }
+  const labels = curve.dates;
+  const nav = curve.nav || [];
+  const bench = curve.bench || [];
+  const lastNav = nav[nav.length - 1];
+  const lastBench = bench[bench.length - 1];
+  const rel = [];
+  const len = Math.min(labels.length, nav.length, bench.length);
+  for (let i = 0; i < len; i++) {
+    rel.push(isNum(nav[i]) && isNum(bench[i]) && bench[i] !== 0 ? nav[i] / bench[i] - 1 : null);
+  }
+  $('navSub').textContent = labels[0] + ' → ' + labels[labels.length - 1] + ' · 日收盘净值 · 含费用';
+  $('navLegend').innerHTML =
+    '<span><i style="background:' + C.gold + '"></i>' + esc(f.name) + ' 多头 <b>' + fmtNav(lastNav) + '</b></span>' +
+    '<span><i style="background:' + C.blue + '"></i>同池等权基准 <b>' + fmtNav(lastBench) + '</b></span>' +
+    '<span>相对基准 <b class="' + signClass(rel[rel.length - 1]) + '">' + fmtPct(rel[rel.length - 1]) + '</b></span>';
+
+  drawLineChart($('navChart'), {
+    labels: labels.slice(0, len),
+    series: [
+      {name: '因子多头（含费）', color: C.gold, values: nav.slice(0, len), fmt: fmtNav, width: 1.9},
+      {name: '同池等权基准', color: C.blue, values: bench.slice(0, len), fmt: fmtNav, width: 1.5}
+    ],
+    extra: [{name: '相对基准', color: C.teal, values: rel, fmt: fmtPct}],
+    yFmt: v => v.toFixed(2),
+    yTicks: 6,
+    zeroLine: false,
+    top: 18,
+    empty: '该因子没有可交易净值曲线'
+  });
+}
+
+/* =====================================================================
+   方法
+   ===================================================================== */
+function renderMethod() {
+  const m = state.data.meta || {};
+  const nF = state.factors.length;
+  const nH = Array.isArray(m.horizons) ? m.horizons.length : 4;
+  const tests = nF * nH;
+  const splits = m.splits || {};
+  const st = m.st || {};
+  const splitRows = SPLIT_META.map(s => {
+    const r = Array.isArray(splits[s.key]) ? splits[s.key] : [];
+    return '<div class="split-line ' + s.key + '"><span class="sl-lab">' + esc(s.label) + '</span>' +
+      '<code>' + esc(r[0] || '—') + ' → ' + esc(r[1] || '—') + '</code>' +
+      '<span class="sl-note">' + esc(s.note) + '</span></div>';
+  }).join('');
+
+  $('methodBody').innerHTML =
+    '<section class="panel method-sec">' +
+      '<div class="sec-head"><span class="sec-no">01</span><h3>标签与成交时点</h3></div>' +
+      '<p>信号只使用 t 日收盘及以前的信息：t 日收盘后形成因子值，<strong>t+1 开盘进场</strong>，持有 h 个交易日后在 <strong>t+1+h 开盘出场</strong>。收益用复权开盘价计算，避免“t+h 收盘卖出”这种隐含未来函数的口径。</p>' +
+      '<div class="formula-block">label_t = O*(t+1+h) / O*(t+1) − 1,  h ∈ {' + (Array.isArray(m.horizons) ? m.horizons.join(', ') : '1, 5, 10, 20') + '}</div>' +
+      '<ul class="method-list">' +
+        '<li>当前数据口径：<b>' + esc(m.label || '—') + '</b>。</li>' +
+        '<li>多日标签在相邻交易日之间高度重叠，普通 t 检验会高估显著性；因此显著性使用 HAC，IC 曲线与滚动均值只作描述。</li>' +
+        '<li>因子热身期为 252 个交易日，2020 年的行情主要用于形成最长 60 日与 20 日均额等窗口。</li>' +
+      '</ul>' +
+    '</section>' +
+
+    '<section class="panel method-sec">' +
+      '<div class="sec-head"><span class="sec-no">02</span><h3>切分、方向冻结与判定</h3></div>' +
+      '<p>训练期确定方向与阈值，验证期用于稳健性检查与模型选择，测试期只做一次性样本外评估。方向 d 在训练期结束即冻结，之后不再依据验证/测试表现翻转。</p>' +
+      '<div class="split-lines">' + splitRows + '</div>' +
+      '<ul class="method-list">' +
+        '<li>方向 <b>d = sign(训练期 RankIC)</b>；页面所有检验与交易均使用该方向，原始符号在图表/单元格悬停信息中保留。</li>' +
+        '<li>判定：测试期少于 <b>126</b> 个有效交易日直接判为“证据不足”；否则五项判据全部通过为“好因子”，方向为正且至少通过 3 项为“有潜力”，测试期方向非正为“不合格”，其余为“证据不足”。</li>' +
+        '<li>单调性 <b>mono5</b> = 五分组平均未来收益与组序号 (1→5) 的 Spearman 相关，已乘冻结方向；接近 +1 表示因子值与未来收益同向单调。</li>' +
+      '</ul>' +
+    '</section>' +
+
+    '<section class="panel method-sec">' +
+      '<div class="sec-head"><span class="sec-no">03</span><h3>HAC 与 BH-FDR</h3></div>' +
+      '<p>IC 序列存在重叠与自相关，均值显著性使用 <strong>Newey-West (Bartlett) HAC t</strong>：5 日检验 lag=5，其余周期取 lag=max(h, 3)，p 值用正态近似。BH-FDR 在因子 × 周期的全部 <b>' + tests + '</b> 个检验上校正，q 值越小表示控制错误发现率后仍显著。</p>' +
+      '<ul class="method-list">' +
+        '<li>ICIR = mean(RankIC) / sd(RankIC)，未年化；多空 Sharpe 用 sqrt(243/h) 年化。</li>' +
+        '<li>由于标签重叠，ICIR、Sharpe 与 HAC t 均应按“描述性统计”阅读，不能当作独立样本的精确推断。</li>' +
+      '</ul>' +
+    '</section>' +
+
+    '<section class="panel method-sec">' +
+      '<div class="sec-head"><span class="sec-no">04</span><h3>五分组与 IC 衰减</h3></div>' +
+      '<p>每个截面按因子值排序并等分为 5 组，组内等权，计算平均未来收益。Q1 为最低因子值组，Q5 为最高。单调性为组序 0…4 与各组平均收益的相关系数，越接近 1 越单调。</p>' +
+      '<ul class="method-list">' +
+        '<li>分组图按<b>原始因子值</b>排序，不乘方向 d：d=−1 时 Q1 才是预期多头。</li>' +
+        '<li>IC 衰减图与单因子卡片乘方向 d，因此多数因子的衰减值为正。</li>' +
+        '<li>多日持有导致分组收益序列重叠，Sharpe 与 t 值不应按独立样本解读；Q5−Q1 价差也不等于可实现的多空组合收益。</li>' +
+      '</ul>' +
+    '</section>' +
+
+    '<section class="panel method-sec">' +
+      '<div class="sec-head"><span class="sec-no">05</span><h3>中性化代理</h3></div>' +
+      '<p>逐日做横截面秩回归：因子秩 ~ log 收盘价 + log1p(20 日均成交额) + 20 日波动 + 20 日动量，取残差秩与标签秩的相关系数得到残差 RankIC；HAC t 基于残差 IC 序列。</p>' +
+      '<ul class="method-list">' +
+        '<li>这是规模、流动性、波动与动量的<b>有限代理控制</b>，不是行业中性化，也不是严格的风格中性化。</li>' +
+        '<li>残差 IC 接近 0 说明该因子主要是上述变量的代理；残差 IC 仍显著说明存在增量信息。</li>' +
+        '<li>页面以 |残差 IC| &lt; 0.01 作为描述性“代理”标记，不是统计检验结论。</li>' +
+      '</ul>' +
+    '</section>' +
+
+    '<section class="panel method-sec">' +
+      '<div class="sec-head"><span class="sec-no">06</span><h3>交易验证与约束</h3></div>' +
+      '<p>把同一因子分数转成可执行多头组合：按方向调整后的分数取<b>前 100 只</b>，等权，单票上限 <b>5%</b>，目标仓位 <b>98%</b>，每 <b>5 个交易日</b>再平衡；区间末最后 5 个交易日分批退出，卖不掉的残仓按收盘价计入净值并单独披露。初始资金 10 亿元。</p>' +
+      '<ul class="method-list">' +
+        '<li>成交规则：<b>T+1</b> 可卖、<b>100 股整手</b>、<b>涨跌停拒单</b>（交易所 half-up 口径）、停牌跳过、ST 不建仓。</li>' +
+        '<li>容量：单日单票成交额不超过过去 20 日均额的 <b>5%</b>；不足一手或现金不足时拒单。</li>' +
+        '<li>费用：<b>' + esc(m.costs || '佣金万一（单边，最低 5 元）+ 卖出印花税万五 + 单边 5bp 滑点') + '</b>。</li>' +
+        '<li>基准为同一股票池、同一调仓日的等权组合，零成本；净超额 = 策略净收益 − 基准收益。</li>' +
+      '</ul>' +
+    '</section>' +
+
+    '<section class="panel method-sec limit-panel">' +
+      '<div class="sec-head"><span class="sec-no">07</span><h3>局限与解读边界</h3></div>' +
+      '<div class="limit-grid"><ul class="method-list">' +
+        '<li><b>日线撮合</b>：以开盘价加减固定 5bp 滑点成交，没有盘口、排队、冲击成本与日内路径；大额交易的真实成本可能更高。</li>' +
+        '<li><b>ST 识别</b>：2024 年以前缺少官方 ST 标记，使用价格行为推断。本批数据官方 ' + fmtInt(st.official) + ' / 代理 ' + fmtInt(st.proxy) + ' / 未知 ' + fmtInt(st.unknown) + '，代理回填 ' + fmtInt(st.proxy_filled_cells) + ' 个单元格；可能存在误标或漏标。</li>' +
+        '<li><b>残仓未清空</b>：期末未强制清仓，残仓按收盘价计值；成本、换手与最后几日的净值可能受退出约束影响。</li>' +
+        '<li><b>历史区间已被研究</b>：2020–2026 的样本已被反复使用，存在数据窥探与选择偏差；测试期并不是真正的未来样本。</li>' +
+        '<li><b>其它</b>：多日标签重叠；相关矩阵只给时间均值，不反映时变；因子数量与市场环境单一；mono5 缺失。</li>' +
+      '</ul></div>' +
+      '<p style="margin-top:2px">以上结果只用于课程研究，不构成投资建议。</p>' +
+    '</section>' +
+
+    '<section class="panel method-sec data-panel">' +
+      '<div class="sec-head"><span class="sec-no">08</span><h3>数据与复现</h3></div>' +
+      '<p>数据生成时间 <strong>' + esc(m.generated || '—') + '</strong>；行情区间 ' + esc(Array.isArray(m.period) && m.period.length ? m.period.join(' → ') : '—') + '；' + fmtInt(m.n_codes) + ' 只证券、' + fmtInt(m.n_days) + ' 个交易日；样本外评估 ' + esc(m.eval_start || '—') + ' → ' + esc(m.eval_end || '—') + '。页面只读取 data/dashboard.json，不连接任何外部服务。</p>' +
+      '<p>该 JSON 由 Python 默认编码写出（本机为 GBK），且部分 NaN 会以非法 JSON 字面量出现。页面在载入时先用 TextDecoder 严格判定 UTF-8，失败后回退 GBK，再把 NaN / Infinity 归一为 null；图表对 null 断线或跳过。</p>' +
+      '<div class="formula-block">python -m http.server 8000<br>http://localhost:8000/</div>' +
+      '<p>直接以 file:// 打开会被同源策略拦截。全部分析由 run_lab.py 与 factorlab 生成，页面只做展示与派生格式化，不重新估计模型。</p>' +
+    '</section>';
+}
+
+/* =====================================================================
+   图表基础
+   ===================================================================== */
+const FONT_SANS = '11px "Segoe UI","Microsoft YaHei","PingFang SC",sans-serif';
+const FONT_MONO = '9.5px Consolas,"Cascadia Mono","Liberation Mono",monospace';
+
+function prepareCanvas(canvas) {
+  if (!canvas) return null;
+  const w = canvas.clientWidth || 720;
+  const h = canvas.clientHeight;
+  if (!w || !h) return null;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  const pw = Math.round(w * dpr);
+  const ph = Math.round(h * dpr);
+  if (canvas.width !== pw || canvas.height !== ph) {
+    canvas.width = pw;
+    canvas.height = ph;
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return {ctx: ctx, w: w, h: h};
+}
+
+function paintEmpty(canvas, msg) {
+  if (!canvas) return;
+  const dims = prepareCanvas(canvas);
+  if (!dims) return;
+  const {ctx, w, h} = dims;
+  ctx.fillStyle = C.dim;
+  ctx.font = '11.5px "Segoe UI","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(msg || '暂无数据', w / 2, h / 2);
+  canvas._geo = null;
+}
+
+function niceNum(range, round) {
+  if (!(range > 0) || !Number.isFinite(range)) return 1;
+  const exp = Math.floor(Math.log10(range));
+  const f = range / Math.pow(10, exp);
+  let nf;
+  if (round) nf = f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10;
+  else nf = f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10;
+  return nf * Math.pow(10, exp);
+}
+
+function niceScale(lo, hi, target) {
+  target = target || 5;
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return null;
+  if (hi < lo) { const t = lo; lo = hi; hi = t; }
+  if (hi - lo < 1e-12) {
+    const p = Math.max(Math.abs(hi) * 0.1, 1e-6);
+    lo -= p;
+    hi += p;
+  }
+  const step = niceNum(niceNum(hi - lo, false) / Math.max(2, target - 1), true);
+  const nlo = Math.floor(lo / step) * step;
+  const nhi = Math.ceil(hi / step) * step;
+  const ticks = [];
+  const count = Math.round((nhi - nlo) / step);
+  for (let i = 0; i <= count; i++) {
+    const v = nlo + i * step;
+    ticks.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+  }
+  return {lo: nlo, hi: nhi, ticks: ticks};
+}
+
+function makeDomain(values, opts) {
+  opts = opts || {};
+  const finite = values.filter(isNum);
+  if (!finite.length) return null;
+  let lo = Math.min.apply(null, finite);
+  let hi = Math.max.apply(null, finite);
+  const includeZero = !!opts.includeZero;
+  if (includeZero) {
+    lo = Math.min(lo, 0);
+    hi = Math.max(hi, 0);
+  }
+  if (hi - lo < 1e-12) {
+    const p = Math.max(Math.abs(hi) * 0.1, 1e-6);
+    lo -= p;
+    hi += p;
+  }
+  const span = hi - lo;
+  const pad = opts.pad == null ? 0.06 : opts.pad;
+  let dlo = lo - span * pad;
+  let dhi = hi + span * pad;
+  if (includeZero) {
+    if (lo >= 0) dlo = 0;
+    if (hi <= 0) dhi = 0;
+  }
+  return niceScale(dlo, dhi, opts.ticks || 5);
+}
+
+function makeXTicks(n, count) {
+  if (n <= 1) return [0];
+  const out = [];
+  for (let k = 0; k < count; k++) {
+    const i = Math.round((n - 1) * k / (count - 1));
+    if (!out.includes(i)) out.push(i);
+  }
+  return out;
+}
+
+function bindPointer(canvas, onMove, onLeave) {
+  if (!canvas._pointerBound) {
+    canvas._pointerBound = true;
+    canvas.addEventListener('pointermove', e => { if (canvas._onMove) canvas._onMove(e); });
+    canvas.addEventListener('pointerleave', () => { if (canvas._onLeave) canvas._onLeave(); });
+  }
+  canvas._onMove = onMove;
+  canvas._onLeave = onLeave;
+}
+
+function showTip(html, x, y) {
+  const tip = $('chartTip');
+  if (!tip) return;
+  tip.innerHTML = html;
+  tip.hidden = false;
+  const rect = tip.getBoundingClientRect();
+  let left = x + 16;
+  let top = y + 16;
+  if (left + rect.width > window.innerWidth - 10) left = x - rect.width - 16;
+  if (top + rect.height > window.innerHeight - 10) top = y - rect.height - 16;
+  tip.style.left = Math.max(8, left) + 'px';
+  tip.style.top = Math.max(8, top) + 'px';
+}
+
+function hideTip() {
+  const tip = $('chartTip');
+  if (tip) tip.hidden = true;
+}
+
+/* ---------------- 折线图 ---------------- */
+function drawLineChart(canvas, cfg) {
+  if (!canvas) return;
+  canvas._hover = -1;
+  paintLine(canvas, cfg, -1);
+}
+
+function paintLine(canvas, cfg, hover) {
+  const dims = prepareCanvas(canvas);
+  if (!dims) return;
+  const {ctx, w, h} = dims;
+  const labels = cfg.labels || [];
+  const n = labels.length;
+  const series = (cfg.series || []).map(s => Object.assign({}, s, {values: s.values || []}));
+  const m = {
+    l: cfg.left == null ? 58 : cfg.left,
+    r: cfg.right == null ? 18 : cfg.right,
+    t: cfg.top == null ? 18 : cfg.top,
+    b: cfg.bottom == null ? 30 : cfg.bottom
+  };
+  const pw = w - m.l - m.r;
+  const ph = h - m.t - m.b;
+  if (n === 0 || pw < 40 || ph < 30) {
+    paintEmpty(canvas, cfg.empty || '暂无数据');
+    return;
+  }
+  const vals = [];
+  series.forEach(s => s.values.forEach(v => { if (isNum(v)) vals.push(v); }));
+  const dom = makeDomain(vals, {includeZero: !!cfg.zeroLine, ticks: cfg.yTicks || 5, pad: cfg.pad == null ? 0.06 : cfg.pad});
+  if (!dom) {
+    paintEmpty(canvas, cfg.empty || '暂无数据');
+    return;
+  }
+  const xOf = i => n === 1 ? m.l + pw / 2 : m.l + (i / (n - 1)) * pw;
+  const yOf = v => m.t + (dom.hi - v) / (dom.hi - dom.lo) * ph;
+
+  ctx.fillStyle = 'rgba(6,10,12,.26)';
+  ctx.fillRect(m.l, m.t, pw, ph);
+
+  // 切分阴影
+  (cfg.bands || []).forEach(band => {
+    let a = -1;
+    let b = -1;
+    for (let i = 0; i < n; i++) {
+      if (a < 0 && labels[i] >= band.from) a = i;
+      if (labels[i] <= band.to) b = i;
+    }
+    if (a < 0 || b < a) return;
+    const x1 = xOf(a);
+    const x2 = xOf(b);
+    ctx.fillStyle = band.fill;
+    ctx.fillRect(x1, m.t, Math.max(1, x2 - x1), ph);
+    ctx.strokeStyle = 'rgba(255,255,255,.10)';
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath();
+    ctx.moveTo(x1, m.t);
+    ctx.lineTo(x1, m.t + ph);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (x2 - x1 > 34) {
+      ctx.fillStyle = band.color;
+      ctx.globalAlpha = 0.8;
+      ctx.font = '9px "Segoe UI","Microsoft YaHei",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(band.label, (x1 + x2) / 2, m.t + 5);
+      ctx.globalAlpha = 1;
+    }
+  });
+
+  // 横向网格与 y 轴
+  const yFmt = cfg.yFmt || fmtAxisIC;
+  ctx.font = FONT_MONO;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  dom.ticks.forEach(v => {
+    const y = yOf(v);
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(m.l, y);
+    ctx.lineTo(m.l + pw, y);
+    ctx.stroke();
+    ctx.strokeStyle = C.axis;
+    ctx.beginPath();
+    ctx.moveTo(m.l - 4, y);
+    ctx.lineTo(m.l, y);
+    ctx.stroke();
+    ctx.fillStyle = C.text;
+    ctx.fillText(yFmt(v), m.l - 8, y);
+  });
+
+  // 纵向网格与 x 轴
+  const xTicks = makeXTicks(n, cfg.xTicks || 5);
+  xTicks.forEach(i => {
+    const x = xOf(i);
+    ctx.strokeStyle = 'rgba(34,48,52,.55)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, m.t);
+    ctx.lineTo(x, m.t + ph);
+    ctx.stroke();
+    ctx.strokeStyle = C.axis;
+    ctx.beginPath();
+    ctx.moveTo(x, m.t + ph);
+    ctx.lineTo(x, m.t + ph + 4);
+    ctx.stroke();
+  });
+
+  // 零线
+  if (dom.lo < 0 && dom.hi > 0) {
+    const zy = yOf(0);
+    ctx.strokeStyle = 'rgba(214,178,121,.34)';
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(m.l, zy);
+    ctx.lineTo(m.l + pw, zy);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // 折线
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(m.l, m.t, pw, ph);
+  ctx.clip();
+  series.forEach(s => {
+    ctx.beginPath();
+    let started = false;
+    s.values.forEach((v, i) => {
+      if (!isNum(v)) { started = false; return; }
+      const x = xOf(i);
+      const y = yOf(v);
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = s.width || 1.7;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  });
+  if (hover >= 0 && hover < n) {
+    const hx = xOf(hover);
+    ctx.strokeStyle = 'rgba(214,178,121,.38)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(hx, m.t);
+    ctx.lineTo(hx, m.t + ph);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    series.forEach(s => {
+      const v = s.values[hover];
+      if (!isNum(v)) return;
+      ctx.beginPath();
+      ctx.arc(hx, yOf(v), 3, 0, Math.PI * 2);
+      ctx.fillStyle = s.color;
+      ctx.fill();
+      ctx.strokeStyle = '#0b1012';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    });
+  }
+  ctx.restore();
+
+  // 坐标轴
+  ctx.strokeStyle = C.axis;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(m.l, m.t);
+  ctx.lineTo(m.l, m.t + ph);
+  ctx.lineTo(m.l + pw, m.t + ph);
+  ctx.stroke();
+
+  // x 轴标签
+  ctx.font = FONT_MONO;
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = C.text;
+  xTicks.forEach(i => {
+    const raw = String(labels[i] == null ? '' : labels[i]);
+    const text = raw.length > 7 ? raw.slice(0, 7) : raw;
+    const x = xOf(i);
+    ctx.textAlign = i === 0 ? 'left' : (i === n - 1 ? 'right' : 'center');
+    ctx.fillText(text, i === 0 ? m.l : (i === n - 1 ? m.l + pw : x), m.t + ph + 7);
+  });
+
+  canvas._geo = {m: m, pw: pw, ph: ph, n: n, labels: labels};
+  canvas._paint = function (hv) { paintLine(canvas, cfg, hv); };
+  bindPointer(canvas, function (e) {
+    const g = canvas._geo;
+    if (!g) return;
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    if (px < g.m.l - 10 || px > g.m.l + g.pw + 10) {
+      hideTip();
+      if (canvas._hover !== -1) { canvas._hover = -1; canvas._paint(-1); }
+      return;
+    }
+    const i = clamp(Math.round((px - g.m.l) / g.pw * (g.n - 1)), 0, g.n - 1);
+    if (canvas._hover !== i) {
+      canvas._hover = i;
+      canvas._paint(i);
+    }
+    showTip(lineTipHTML(cfg, i), e.clientX, e.clientY);
+  }, function () {
+    hideTip();
+    canvas._hover = -1;
+    if (canvas._paint) canvas._paint(-1);
+  });
+}
+
+function lineTipHTML(cfg, i) {
+  const labels = cfg.labels || [];
+  const rows = (cfg.series || []).map(s => {
+    const v = s.values ? s.values[i] : null;
+    const txt = isNum(v) ? (s.fmt ? s.fmt(v) : fmtNum(v, 4)) : '—';
+    return '<div class="tt-row"><span class="tt-name"><i class="tt-dot" style="background:' + s.color + '"></i>' +
+      esc(s.name) + '</span><b>' + esc(txt) + '</b></div>';
+  }).join('');
+  const extras = (cfg.extra || []).map(e => {
+    const v = e.values ? e.values[i] : null;
+    if (!isNum(v)) return '';
+    const txt = e.fmt ? e.fmt(v) : fmtNum(v, 4);
+    return '<div class="tt-row"><span class="tt-name"><i class="tt-dot" style="background:' + e.color + '"></i>' +
+      esc(e.name) + '</span><b>' + esc(txt) + '</b></div>';
+  }).join('');
+  return '<div class="tt-date">' + esc(labels[i] == null ? '' : labels[i]) + '</div>' + rows +
+    (extras ? '<div class="tt-note">' + extras + '</div>' : '');
+}
+
+/* ---------------- 柱状图 ---------------- */
+function drawBarChart(canvas, cfg) {
+  if (!canvas) return;
+  canvas._hover = -1;
+  paintBars(canvas, cfg, -1);
+}
+
+function paintBars(canvas, cfg, hover) {
+  const dims = prepareCanvas(canvas);
+  if (!dims) return;
+  const {ctx, w, h} = dims;
+  const values = cfg.values || [];
+  const n = values.length;
+  const m = {l: 58, r: 18, t: 22, b: 32};
+  const pw = w - m.l - m.r;
+  const ph = h - m.t - m.b;
+  if (!n || pw < 40 || ph < 30) {
+    paintEmpty(canvas, cfg.empty || '暂无数据');
+    return;
+  }
+  const dom = makeDomain(values, {includeZero: true, ticks: 5, pad: 0.12});
+  if (!dom) {
+    paintEmpty(canvas, cfg.empty || '暂无数据');
+    return;
+  }
+  const yOf = v => m.t + (dom.hi - v) / (dom.hi - dom.lo) * ph;
+  const slot = pw / n;
+  const bw = Math.min(slot * 0.58, 64);
+  const xCenter = i => m.l + slot * (i + 0.5);
+  const yFmt = cfg.yFmt || fmtAxisIC;
+
+  ctx.fillStyle = 'rgba(6,10,12,.26)';
+  ctx.fillRect(m.l, m.t, pw, ph);
+
+  // 横向网格
+  ctx.font = FONT_MONO;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  dom.ticks.forEach(v => {
+    const y = yOf(v);
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(m.l, y);
+    ctx.lineTo(m.l + pw, y);
+    ctx.stroke();
+    ctx.strokeStyle = C.axis;
+    ctx.beginPath();
+    ctx.moveTo(m.l - 4, y);
+    ctx.lineTo(m.l, y);
+    ctx.stroke();
+    ctx.fillStyle = C.text;
+    ctx.fillText(yFmt(v), m.l - 8, y);
+  });
+
+  // 分类分隔线
+  for (let i = 1; i < n; i++) {
+    const x = m.l + slot * i;
+    ctx.strokeStyle = 'rgba(34,48,52,.4)';
+    ctx.beginPath();
+    ctx.moveTo(x, m.t);
+    ctx.lineTo(x, m.t + ph);
+    ctx.stroke();
+  }
+
+  // 悬停背景
+  if (hover >= 0 && hover < n) {
+    ctx.fillStyle = 'rgba(214,178,121,.045)';
+    ctx.fillRect(m.l + slot * hover, m.t, slot, ph);
+  }
+
+  // 零线
+  const y0 = yOf(0);
+  if (dom.lo < 0 && dom.hi > 0) {
+    ctx.strokeStyle = 'rgba(214,178,121,.38)';
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(m.l, y0);
+    ctx.lineTo(m.l + pw, y0);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // 柱与数值
+  values.forEach((v, i) => {
+    const cx = xCenter(i);
+    if (!isNum(v)) {
+      ctx.strokeStyle = C.axis;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx - 7, y0);
+      ctx.lineTo(cx + 7, y0);
+      ctx.stroke();
+      ctx.fillStyle = C.dim;
+      ctx.font = FONT_MONO;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText('—', cx, y0 + 5);
+      return;
+    }
+    const y1 = yOf(v);
+    const top = Math.min(y0, y1);
+    const height = Math.max(1, Math.abs(y0 - y1));
+    ctx.fillStyle = v >= 0 ? C.teal : C.red;
+    ctx.globalAlpha = hover === i ? 1 : 0.86;
+    ctx.fillRect(cx - bw / 2, top, bw, height);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = C.ink2;
+    ctx.font = FONT_MONO;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = v >= 0 ? 'bottom' : 'top';
+    const label = cfg.valueFmt ? cfg.valueFmt(v) : fmtNum(v, 4);
+    ctx.fillText(label, cx, v >= 0 ? top - 5 : top + height + 5);
+  });
+
+  // x 轴
+  ctx.strokeStyle = C.axis;
+  ctx.beginPath();
+  ctx.moveTo(m.l, m.t + ph);
+  ctx.lineTo(m.l + pw, m.t + ph);
+  ctx.stroke();
+  ctx.font = '10px "Segoe UI","Microsoft YaHei",sans-serif';
+  ctx.fillStyle = C.text;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  (cfg.labels || []).forEach((label, i) => {
+    ctx.fillText(String(label == null ? '' : label), xCenter(i), m.t + ph + 7);
+  });
+
+  canvas._geo = {m: m, pw: pw, ph: ph, n: n, slot: slot, values: values};
+  canvas._paint = function (hv) { paintBars(canvas, cfg, hv); };
+  bindPointer(canvas, function (e) {
+    const g = canvas._geo;
+    if (!g) return;
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    if (px < g.m.l || px > g.m.l + g.pw) {
+      hideTip();
+      if (canvas._hover !== -1) { canvas._hover = -1; canvas._paint(-1); }
+      return;
+    }
+    const i = clamp(Math.floor((px - g.m.l) / g.slot), 0, g.n - 1);
+    if (canvas._hover !== i) {
+      canvas._hover = i;
+      canvas._paint(i);
+    }
+    const v = g.values[i];
+    const color = isNum(v) ? (v >= 0 ? C.teal : C.red) : C.dim;
+    const txt = isNum(v) ? (cfg.valueFmt ? cfg.valueFmt(v) : fmtNum(v, 4)) : '—';
+    const html = '<div class="tt-date">' + esc((cfg.labels || [])[i] == null ? '' : cfg.labels[i]) + '</div>' +
+      '<div class="tt-row"><span class="tt-name"><i class="tt-dot" style="background:' + color + '"></i>' +
+      esc(cfg.name || '数值') + '</span><b>' + esc(txt) + '</b></div>' +
+      (cfg.tipNote ? '<div class="tt-note">' + esc(cfg.tipNote) + '</div>' : '');
+    showTip(html, e.clientX, e.clientY);
+  }, function () {
+    hideTip();
+    canvas._hover = -1;
+    if (canvas._paint) canvas._paint(-1);
+  });
+}
+
+/* =====================================================================
+   事件与启动
+   ===================================================================== */
+let resizeTimer = null;
+
+function onOverviewClick(e) {
+  const th = e.target.closest('th[data-sort]');
+  if (th) {
+    const key = th.dataset.sort;
+    if (state.sort.key === key) {
+      state.sort.dir *= -1;
+    } else {
+      state.sort.key = key;
+      state.sort.dir = (key === 'name' || key === 'category' || key === 'formula' || key === 'verdict') ? 1 : -1;
+    }
+    renderOverview();
+    return;
+  }
+  const tr = e.target.closest('tr[data-factor]');
+  if (tr) setFactor(tr.dataset.factor, {tab: 'single'});
+}
+
+function onTradableClick(e) {
+  const tr = e.target.closest('tr[data-factor]');
+  if (tr) setFactor(tr.dataset.factor);
+}
+
+function bindEvents() {
+  $$('.tab').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+  const tabsBar = $('tabsBar');
+  if (tabsBar) {
+    tabsBar.addEventListener('keydown', e => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      e.preventDefault();
+      const idx = TABS.indexOf(state.tab);
+      const step = e.key === 'ArrowRight' ? 1 : -1;
+      const next = TABS[(idx + step + TABS.length) % TABS.length];
+      switchTab(next);
+      const btn = $('tab-' + next);
+      if (btn) btn.focus();
+    });
+  }
+
+  const sf = $('sfSelect');
+  if (sf) sf.addEventListener('change', e => setFactor(e.target.value));
+  const tr = $('trSelect');
+  if (tr) tr.addEventListener('change', e => setFactor(e.target.value));
+
+  const ov = $('overviewTableWrap');
+  if (ov) {
+    ov.addEventListener('click', onOverviewClick);
+    ov.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const row = e.target.closest('tr[data-factor]');
+      if (!row) return;
+      e.preventDefault();
+      setFactor(row.dataset.factor, {tab: 'single'});
+    });
+  }
+
+  const trWrap = $('trTableWrap');
+  if (trWrap) {
+    trWrap.addEventListener('click', onTradableClick);
+    trWrap.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const row = e.target.closest('tr[data-factor]');
+      if (!row) return;
+      e.preventDefault();
+      setFactor(row.dataset.factor);
+    });
+  }
+
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (!state.data) return;
+      hideTip();
+      renderTab(state.tab);
+    }, 120);
+  });
+
+  window.addEventListener('hashchange', () => {
+    const tab = (location.hash || '').replace(/^#/, '');
+    if (TABS.includes(tab) && tab !== state.tab) switchTab(tab, {hash: false, scroll: false});
+  });
+}
+
+function showFatal(err, stage) {
+  console.error(err);
+  $('loader').hidden = true;
+  $('fatal').hidden = false;
+  const fileMode = location.protocol === 'file:';
+  const detail = err && err.message ? err.message : String(err);
+  const prefix = fileMode
+    ? '当前以 <code>file://</code> 打开，浏览器会阻止 fetch 本地数据。请改用本地 HTTP 服务。'
+    : (stage === 'render' ? '页面渲染失败：' : '读取或解析 <code>data/dashboard.json</code> 失败：');
+  $('fatalMsg').innerHTML = prefix + (fileMode ? '' : '<code>' + esc(detail) + '</code>');
+}
+
+async function init() {
+  let raw;
+  try {
+    raw = await loadData();
+  } catch (err) {
+    showFatal(err, 'load');
+    return;
+  }
+  try {
+    prepareData(raw);
+    renderHeader();
+    renderSplitStrip();
+    buildSelectors();
+    bindEvents();
+    $('loader').hidden = true;
+    const initial = (location.hash || '').replace(/^#/, '');
+    const tab = TABS.includes(initial) ? initial : 'overview';
+    switchTab(tab, {hash: false, scroll: false});
+  } catch (err) {
+    showFatal(err, 'render');
+  }
+}
+
 init();
+
 </script>
 </body>
 </html>
