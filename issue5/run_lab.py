@@ -201,7 +201,7 @@ def main():
             del fac
         trad = pd.DataFrame(rows)
         trad.to_csv(f'{args.out}/tradable.csv', index=False)
-        json.dump(curves, open(f'{args.out}/tradable_curves.json', 'w'))
+        json.dump(curves, open(f'{args.out}/tradable_curves.json', 'w', encoding='utf-8'))
 
     # 判定
     tm = {r['factor']: r for r in trad.to_dict('records')} if len(trad) else {}

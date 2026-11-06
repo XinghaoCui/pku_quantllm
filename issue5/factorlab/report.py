@@ -59,7 +59,7 @@ def write_dashboard(p, summary, sp_df, corr_df, resid_df, trad, ic_rows, args, p
 
     curves = {}
     try:
-        curves = json.load(open(path.replace('dashboard.json', 'tradable_curves.json')))
+        curves = json.load(open(path.replace('dashboard.json', 'tradable_curves.json'), encoding='utf-8'))
     except Exception:
         pass
 
@@ -100,8 +100,8 @@ def write_dashboard(p, summary, sp_df, corr_df, resid_df, trad, ic_rows, args, p
         'curves': curves,
     }
     out = _deepclean(out)
-    json.dump(out, open(path, 'w'), ensure_ascii=False, separators=(',', ':'),
-              allow_nan=False)
+    json.dump(out, open(path, 'w', encoding='utf-8'), ensure_ascii=False,
+              separators=(',', ':'), allow_nan=False)
     print(f'  dashboard.json {len(json.dumps(out))/1024:.0f} KB -> {path}')
 
 

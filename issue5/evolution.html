@@ -1,0 +1,2409 @@
+<!--
+  因子演化实验 · 第六讲 进化 —— 单文件交互式研究报告
+  纯前端：内联 CSS + 原生 JavaScript，无构建、无 CDN、无外部字体、无外部图片。
+
+  !! 必须通过本地 HTTP 服务打开 !!
+  在本目录（.repo/issue5）执行：
+      python -m http.server 8000
+  然后访问：
+      http://localhost:8000/evolution.html
+
+  直接双击以 file:// 打开时，浏览器会按同源策略拦截 fetch('data/evolution.json')，
+  页面会给出明确提示而不是空白。
+
+  数据：data/evolution.json（由 run_evolution.py 生成，字段与 _evo_smoke 一致）。
+  页面按 UTF-8 严格解码，失败后回退 GBK —— Python 在 Windows 上默认以 GBK 写文件，
+  否则中文会变成乱码；同时把 json.dump 可能写出的 NaN / Infinity 归一为 null。
+-->
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>因子演化实验 · 第六讲 进化</title>
+<style>
+:root{
+  color-scheme: dark;
+  --bg:#0b1012;
+  --panel:#11181b;
+  --panel-2:#151f22;
+  --panel-3:#192427;
+  --line:#223034;
+  --line-2:#2d3d41;
+  --ink:#e9ece7;
+  --ink-2:#c3ccc8;
+  --muted:#8b9b9e;
+  --dim:#62757a;
+  --gold:#d6b279;
+  --gold-2:#b3925c;
+  --teal:#6fb3a8;
+  --blue:#7f9fc2;
+  --red:#d38b7f;
+  --green:#8fc7a2;
+  --violet:#b6a0c8;
+  --amber:#d9b06a;
+  --pos:#a5cabb;
+  --neg:#d8a59b;
+  --serif:"Songti SC","STSong","SimSun","Noto Serif CJK SC",Georgia,serif;
+  --sans:"Segoe UI","Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
+  --mono:"Cascadia Mono","SFMono-Regular",Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--bg)}
+body{
+  margin:0;color:var(--ink);
+  background:radial-gradient(1100px 420px at 50% -170px,rgba(56,92,86,.22),transparent 70%),var(--bg);
+  font:13px/1.62 var(--sans);
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:rgba(214,178,121,.28);color:#fff}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:#0c1214}
+::-webkit-scrollbar-thumb{background:#2b3a3e;border:2px solid #0c1214}
+::-webkit-scrollbar-thumb:hover{background:#3a4d51}
+.wrap{width:min(1500px,100%);margin:0 auto;padding:0 26px 64px}
+a{color:var(--teal)}
+.mono,code{font-family:var(--mono)}
+.muted{color:var(--muted)}
+.dim{color:var(--dim)}
+.pos{color:var(--pos)}
+.neg{color:var(--neg)}
+
+/* ---------------- masthead ---------------- */
+.masthead{padding:26px 0 0;border-bottom:1px solid var(--line)}
+.kicker{display:flex;justify-content:space-between;gap:16px;align-items:baseline;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--gold-2);text-transform:uppercase}
+.kicker .stamp{color:var(--dim);letter-spacing:.1em;text-align:right}
+h1{font-family:var(--serif);font-weight:600;font-size:33px;line-height:1.24;letter-spacing:.01em;margin:10px 0 6px}
+h1 .dot{color:var(--gold-2);font-weight:400;margin:0 2px}
+h1 .sub{font-size:.54em;color:var(--ink-2);font-weight:400;letter-spacing:.02em}
+.lede{max-width:1040px;font-size:12.5px;line-height:1.75;color:var(--ink-2);margin:0 0 10px}
+.lede b{color:var(--gold);font-weight:600}
+.meta-line{display:flex;flex-wrap:wrap;gap:4px 22px;font-size:11.5px;color:var(--muted);line-height:1.7;margin:0 0 14px}
+.meta-item{display:inline-flex;align-items:baseline;gap:6px;min-width:0}
+.meta-item em{font-style:normal;font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;white-space:nowrap}
+.meta-item .v{color:var(--ink-2)}
+.intros{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;margin:4px 0 20px}
+.intro{border:1px solid var(--line);border-left:3px solid var(--c,var(--line-2));
+  background:linear-gradient(180deg,rgba(255,255,255,.022),rgba(255,255,255,0));padding:10px 13px 11px;min-width:0}
+.intro-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.intro-name{font-size:12.5px;font-weight:600;color:var(--c,var(--ink));letter-spacing:.03em}
+.intro-key{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.1em}
+.intro p{margin:5px 0 0;font-size:11px;line-height:1.6;color:var(--muted)}
+
+/* ---------------- tabs ---------------- */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin:0 0 20px;
+  position:sticky;top:0;z-index:30;overflow-x:auto;
+  background:linear-gradient(180deg,var(--bg) 78%,rgba(11,16,18,.86));backdrop-filter:blur(3px)}
+.tab{appearance:none;background:none;border:0;border-bottom:2px solid transparent;
+  color:var(--muted);font:600 12px/1 var(--sans);letter-spacing:.09em;padding:13px 16px 11px;cursor:pointer;white-space:nowrap}
+.tab:hover{color:var(--ink-2)}
+.tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+
+/* ---------------- blocks ---------------- */
+.sec{margin:24px 0 0}
+.sec:first-child{margin-top:0}
+.sec-head{display:flex;justify-content:space-between;align-items:baseline;gap:14px;margin:0 0 9px}
+.sec-head h2{font-family:var(--serif);font-size:17px;font-weight:600;margin:0;letter-spacing:.02em}
+.sec-head .hint{font-size:11px;color:var(--muted);text-align:right}
+.panel-card{border:1px solid var(--line);background:var(--panel)}
+.pad{padding:14px 16px}
+
+/* ---------------- kpi cards ---------------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:11px}
+.kpi{border:1px solid var(--line);border-top:2px solid var(--c,var(--line-2));
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));padding:12px 14px 10px;min-width:0}
+.kpi-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.kpi-top h3{margin:0;font-size:14px;font-weight:600;letter-spacing:.03em;color:var(--c,var(--ink))}
+.kpi-desc{margin:4px 0 8px;font-size:10.5px;line-height:1.55;color:var(--muted);min-height:2.6em}
+.stat{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:3.5px 0;border-bottom:1px dashed rgba(45,61,65,.55)}
+.stat:last-child{border-bottom:0}
+.stat .k{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.stat .v{font-family:var(--mono);font-size:11.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.kpi-foot{margin-top:7px;padding-top:6px;border-top:1px solid var(--line);font-size:10px;color:var(--dim)}
+
+/* ---------------- chips ---------------- */
+.chip{display:inline-block;padding:1px 7px;border:1px solid var(--c,var(--line-2));
+  color:var(--c,var(--ink-2));background:rgba(255,255,255,.03);
+  font:11px/1.65 var(--sans);white-space:nowrap}
+.c-ok{--c:var(--green)}
+.c-red{--c:var(--red)}
+.c-amber{--c:var(--amber)}
+.c-violet{--c:var(--violet)}
+.c-blue{--c:var(--blue)}
+.c-dim{--c:var(--dim)}
+.c-teal{--c:var(--teal)}
+.c-gold{--c:var(--gold)}
+.legend{display:flex;flex-wrap:wrap;gap:5px 8px;margin:8px 0 0}
+.legend .chip{cursor:default}
+.legend .rc{display:inline-flex;align-items:center;gap:4px}
+
+/* ---------------- tables ---------------- */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);background:var(--panel)}
+table.tbl{width:100%;border-collapse:collapse;font-size:11.5px}
+table.tbl.fixed{table-layout:fixed}
+.tbl th{background:var(--panel-3);color:var(--muted);font-weight:600;font-size:10px;letter-spacing:.07em;
+  text-align:left;padding:8px 10px;border-bottom:1px solid var(--line-2);white-space:nowrap}
+.tbl th.num{text-align:right}
+.tbl th.sortable{cursor:pointer;user-select:none}
+.tbl th.sortable:hover{color:var(--ink-2);background:#1e2b2f}
+.tbl th .ar{font-size:8px;margin-left:4px;color:var(--gold)}
+.tbl td{padding:6px 10px;border-bottom:1px solid rgba(34,48,52,.72);vertical-align:top}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl tbody tr:hover td{background:rgba(111,179,168,.045)}
+.tbl td.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl td.mid{text-align:center}
+.tbl .sub{color:var(--dim);font-size:10px}
+.tbl .sub.cid{margin-left:6px}
+.fxcell{overflow:hidden}
+.fx{font-family:var(--mono);font-size:11px;white-space:nowrap;overflow-x:auto;overflow-y:hidden;
+  color:var(--ink-2);padding-bottom:2px;scrollbar-width:thin}
+.fx::-webkit-scrollbar{height:6px}
+.fx::-webkit-scrollbar-thumb{background:#2b3a3e;border:0}
+.empty-row td{padding:22px;text-align:center;color:var(--dim)}
+
+/* ---------------- charts ---------------- */
+.chart{border:1px solid var(--line);background:var(--panel);padding:12px 14px 8px;min-width:0}
+.chart-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:6px;flex-wrap:wrap}
+.chart-head h3{margin:0;font-size:12.5px;font-weight:600;letter-spacing:.02em}
+.chart-head .hh{font-size:10.5px;color:var(--dim)}
+canvas{display:block;width:100%}
+#chBestIC{height:272px}
+#chRndHist{height:252px}
+#chBias{height:252px}
+#chEquity{height:364px}
+#chLearn{height:258px}
+.lg{display:flex;flex-wrap:wrap;gap:5px 15px;font-size:10.5px;color:var(--muted);margin:0 0 4px}
+.lg .i{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.lg .sw{width:12px;height:2px;display:inline-block}
+.lg .sw.dot{width:7px;height:7px;border-radius:50%}
+.lgb{appearance:none;background:none;border:1px solid var(--line);color:var(--ink-2);
+  padding:3px 8px;font:11px/1.4 var(--sans);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.lgb:hover{border-color:var(--line-2)}
+.lgb.off{opacity:.38}
+.lgb.off .lb{text-decoration:line-through}
+.duo{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);gap:11px}
+@media (max-width:1120px){.duo{grid-template-columns:minmax(0,1fr)}}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;color:var(--muted);cursor:pointer;user-select:none}
+.chk input{accent-color:var(--teal);width:12px;height:12px;margin:0}
+
+/* ---------------- callouts ---------------- */
+.callout{border-left:2px solid var(--gold-2);background:rgba(214,178,121,.055);
+  padding:10px 14px;font-size:11.5px;line-height:1.7;color:var(--ink-2);margin:12px 0}
+.callout b{color:var(--gold)}
+.callout.plain{border-left-color:var(--line-2);background:rgba(255,255,255,.018);color:var(--muted)}
+.note{font-size:10.5px;color:var(--dim);line-height:1.65;margin:8px 0 0}
+.note b{color:var(--muted);font-weight:600}
+
+/* ---------------- filters ---------------- */
+.filters{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin:0 0 10px}
+.field{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:var(--muted)}
+.field select{background:var(--panel-3);color:var(--ink);border:1px solid var(--line-2);
+  font:11px/1.4 var(--sans);padding:4px 6px;min-width:104px}
+.count{font-size:11px;color:var(--dim);margin-left:auto;font-family:var(--mono)}
+
+/* ---------------- lineage ---------------- */
+.lineage{border:1px solid var(--line);background:var(--panel);margin:0 0 12px}
+.lineage-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel-2)}
+.lineage-head h3{margin:0;font-size:13px;font-weight:600;color:var(--c,var(--ink))}
+.lineage-head .meta{font-size:10.5px;color:var(--muted);font-family:var(--mono)}
+.seedrow{padding:10px 14px;border-bottom:1px solid rgba(34,48,52,.6);display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}
+.seedrow .lab{font-size:10.5px;color:var(--dim);margin-right:4px;letter-spacing:.05em}
+.seedchip{font-family:var(--mono);font-size:10.5px;color:var(--ink-2);border:1px solid var(--line-2);
+  padding:1px 7px;background:rgba(255,255,255,.025);cursor:help}
+.flow{padding:7px 14px;font-size:10.5px;color:var(--gold-2);font-family:var(--mono);letter-spacing:.04em;
+  background:rgba(214,178,121,.04);border-bottom:1px solid rgba(34,48,52,.6)}
+.tree{display:inline-block;padding-left:0}
+.branch{color:var(--line-2);margin-right:4px;font-family:var(--mono)}
+
+/* ---------------- prose (method) ---------------- */
+.prose{max-width:1080px;font-size:12.5px;line-height:1.78;color:var(--ink-2)}
+.prose h2{font-family:var(--serif);font-size:16px;font-weight:600;margin:26px 0 8px;color:var(--ink);letter-spacing:.02em}
+.prose h2:first-child{margin-top:0}
+.prose h2 .no{color:var(--gold-2);font-family:var(--mono);font-size:12px;margin-right:8px;letter-spacing:.06em}
+.prose p{margin:0 0 9px}
+.prose ul,.prose ol{margin:0 0 10px;padding-left:20px}
+.prose li{margin:3px 0}
+.prose code{font-size:11px;background:rgba(255,255,255,.04);padding:1px 5px;color:var(--ink)}
+.prose b{color:var(--ink)}
+.kvtab{width:100%;border-collapse:collapse;font-size:11.5px;margin:6px 0 12px;border:1px solid var(--line)}
+.kvtab th{width:150px;text-align:left;padding:7px 12px;background:var(--panel-2);color:var(--muted);
+  font-weight:600;border-bottom:1px solid var(--line);white-space:nowrap}
+.kvtab td{padding:7px 12px;border-bottom:1px solid rgba(34,48,52,.7);color:var(--ink-2)}
+.kvtab tr:last-child th,.kvtab tr:last-child td{border-bottom:0}
+
+/* ---------------- misc ---------------- */
+.tip{position:fixed;z-index:120;pointer-events:none;background:rgba(13,20,23,.97);
+  border:1px solid var(--line-2);padding:7px 10px;font:11px/1.62 var(--mono);color:var(--ink-2);
+  max-width:420px;box-shadow:0 10px 30px rgba(0,0,0,.55)}
+.tip b{display:block;color:var(--ink);font-weight:600;margin-bottom:3px;font-family:var(--sans);font-size:11.5px}
+.tip .row{display:flex;justify-content:space-between;gap:14px;white-space:nowrap}
+.tip .sw{display:inline-block;width:7px;height:7px;margin-right:6px;vertical-align:middle}
+.tip .fx{font-size:10.5px;color:var(--muted);max-width:380px;overflow:hidden;text-overflow:ellipsis}
+.det{border:1px solid var(--line);background:var(--panel);margin:0 0 8px}
+.det>summary{cursor:pointer;padding:8px 12px;font-size:11.5px;color:var(--ink-2);background:var(--panel-2);
+  list-style:none;display:flex;align-items:baseline;gap:10px}
+.det>summary::-webkit-details-marker{display:none}
+.det>summary::before{content:"+";color:var(--gold-2);font-family:var(--mono);flex:none}
+.det[open]>summary::before{content:"−"}
+.det>summary .r{color:var(--dim);font-family:var(--mono);font-size:10.5px;margin-left:auto}
+.det .body{border-top:1px solid var(--line)}
+footer{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);font-size:10.5px;color:var(--dim);line-height:1.8}
+footer .row{display:flex;flex-wrap:wrap;gap:4px 20px;justify-content:space-between}
+
+/* ---------------- fatal ---------------- */
+.fatal{position:fixed;inset:0;z-index:300;background:rgba(8,12,14,.97);
+  display:flex;align-items:center;justify-content:center;padding:26px}
+.fatal .box{max-width:800px;width:100%;border:1px solid var(--line-2);background:var(--panel);padding:26px 30px 24px}
+.fatal h2{font-family:var(--serif);font-size:22px;color:var(--red);margin:0 0 10px;font-weight:600}
+.fatal p{font-size:12px;color:var(--ink-2);line-height:1.75;margin:0 0 10px}
+.fatal pre{background:var(--panel-3);border:1px solid var(--line);padding:10px 12px;overflow:auto;
+  font:11px/1.6 var(--mono);color:var(--muted);margin:10px 0 0;white-space:pre-wrap;word-break:break-all}
+.fatal code{font-family:var(--mono);color:var(--gold);background:rgba(214,178,121,.09);padding:1px 6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="kicker">
+      <span>ISSUE 05 · 第六讲 · 进化</span>
+      <a class="stamp" href="index.html" style="text-decoration:none">← 因子评价报告</a>
+      <span class="stamp" id="stamp">正在载入数据…</span>
+    </div>
+    <h1>因子演化实验<span class="dot">·</span><span class="sub">第六讲　进化</span></h1>
+    <p class="lede">
+      在<b>同一评价预算</b>下比较四组搜索策略——基线、Harness、学习型候选评分器、纯随机对照，
+      并把每一组的最终因子池冻结后只做<b>一次</b>样本外检验。随机对照与选择偏差曲线回答同一个问题：
+      <b>候选越多，历史上的最好成绩越好看</b>，训练期的「新高」有多少只是搜索次数的产物。
+    </p>
+    <div class="meta-line" id="metaLine"></div>
+    <div class="intros" id="introGrid"></div>
+  </header>
+
+  <nav class="tabs" id="tabs" role="tablist" aria-label="报告分页">
+    <button class="tab" role="tab" id="tab-overview" data-tab="overview" aria-selected="true" aria-controls="panel-overview">总览</button>
+    <button class="tab" role="tab" id="tab-candidates" data-tab="candidates" aria-selected="false" aria-controls="panel-candidates">候选</button>
+    <button class="tab" role="tab" id="tab-lineage" data-tab="lineage" aria-selected="false" aria-controls="panel-lineage">谱系</button>
+    <button class="tab" role="tab" id="tab-random" data-tab="random" aria-selected="false" aria-controls="panel-random">随机对照</button>
+    <button class="tab" role="tab" id="tab-oos" data-tab="oos" aria-selected="false" aria-controls="panel-oos">样本外</button>
+    <button class="tab" role="tab" id="tab-method" data-tab="method" aria-selected="false" aria-controls="panel-method">方法</button>
+  </nav>
+
+  <!-- ============================ 总览 ============================ -->
+  <section class="panel" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
+    <div class="sec">
+      <div class="sec-head">
+        <h2>四组对照</h2>
+        <span class="hint">正负号按颜色区分：绿色为正、红色为负；IC 保留 4 位小数</span>
+      </div>
+      <div class="kpis" id="ovCards"></div>
+    </div>
+
+    <div class="sec">
+      <div class="chart">
+        <div class="chart-head">
+          <h3>训练期最好 |RankIC| 随轮次变化</h3>
+          <label class="chk"><input type="checkbox" id="chkMean"> 叠加池内均值 |RankIC|（虚线）</label>
+        </div>
+        <div class="lg" id="bestICLegend"></div>
+        <canvas id="chBestIC"></canvas>
+        <div class="note" id="bestICNote"></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">
+        <h2>轮次明细与拒绝原因</h2>
+        <span class="hint">拒绝原因由 harness 门控给出，同一轮内可并存多个原因</span>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>组别</th>
+              <th class="num">轮次</th>
+              <th class="num">完整评价</th>
+              <th class="num">接受</th>
+              <th>拒绝原因</th>
+              <th class="num">池内最好 |RankIC|</th>
+              <th class="num">池内均值 |RankIC|</th>
+            </tr>
+          </thead>
+          <tbody id="ovRoundBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ 候选 ============================ -->
+  <section class="panel" id="panel-candidates" role="tabpanel" aria-labelledby="tab-candidates" hidden>
+    <div class="sec">
+      <div class="sec-head">
+        <h2>候选明细</h2>
+        <span class="hint">点击表头排序；公式单元格可横向滚动查看完整表达式</span>
+      </div>
+      <div class="filters">
+        <label class="field">组别
+          <select id="candArm"></select>
+        </label>
+        <label class="field">结果
+          <select id="candResult">
+            <option value="all">全部</option>
+            <option value="accepted">仅接受</option>
+            <option value="rejected">仅被拒</option>
+          </select>
+        </label>
+        <span class="count" id="candCount"></span>
+      </div>
+      <div class="legend" id="candReject"></div>
+      <div class="tbl-wrap" style="margin-top:10px">
+        <table class="tbl fixed">
+          <colgroup>
+            <col style="width:64px">
+            <col style="width:136px">
+            <col>
+            <col style="width:68px">
+            <col style="width:88px">
+            <col style="width:70px">
+            <col style="width:106px">
+            <col style="width:94px">
+            <col style="width:98px">
+          </colgroup>
+          <thead>
+            <tr id="candHead">
+              <th class="num sortable" data-key="round">轮次</th>
+              <th class="sortable" data-key="arm">组别</th>
+              <th class="sortable" data-key="formula">公式</th>
+              <th class="num sortable" data-key="nodes">节点数</th>
+              <th class="num sortable" data-key="rank_ic">RankIC</th>
+              <th class="num sortable" data-key="t">t</th>
+              <th class="num sortable" data-key="corr">与池最大相关</th>
+              <th class="num sortable" data-key="incr">增量 IC</th>
+              <th class="sortable" data-key="result">结果</th>
+            </tr>
+          </thead>
+          <tbody id="candBody"></tbody>
+        </table>
+      </div>
+      <div class="note" id="candNote"></div>
+      <div class="legend" id="candLegend"></div>
+    </div>
+  </section>
+
+  <!-- ============================ 谱系 ============================ -->
+  <section class="panel" id="panel-lineage" role="tabpanel" aria-labelledby="tab-lineage" hidden>
+    <div class="sec">
+      <div class="sec-head">
+        <h2>谱系</h2>
+        <span class="hint">按组别列出被接受的候选；缩进表示 parent → child 的生成关系</span>
+      </div>
+      <div class="callout">
+        <b>父代可能已被替换，谱系只记录生成关系。</b>
+        池在演化过程中会淘汰最弱成员，被淘汰的父代仍然出现在生成链上，
+        所以谱系不等于最终池的组成；最终池成员请以「候选」页与样本外成员表为准。
+      </div>
+      <div class="callout plain" id="lineageMissing" hidden>
+        本数据版本的 <code>pool</code> 只保存<b>当前池成员</b>，且没有记录 <code>parent</code> / <code>round</code> 字段，
+        因此父代与轮次显示为「—」，只按组别列出被接受的候选；被替换掉的已接受候选也不在此列表中。
+        当 evolution.json 的池条目带有这两个字段时，页面会自动补全并画出缩进树。
+      </div>
+      <div id="lineageWrap"></div>
+    </div>
+  </section>
+
+  <!-- ============================ 随机对照 ============================ -->
+  <section class="panel" id="panel-random" role="tabpanel" aria-labelledby="tab-random" hidden>
+    <div class="sec">
+      <div class="sec-head">
+        <h2>随机对照与选择偏差</h2>
+        <span class="hint">随机公式不迭代、不做门控，只用来估计「搜索次数本身」的收益</span>
+      </div>
+      <div class="kpis" id="rndStats"></div>
+    </div>
+
+    <div class="sec">
+      <div class="duo">
+        <div class="chart">
+          <div class="chart-head">
+            <h3>随机公式的训练期 RankIC 分布</h3>
+            <span class="hh" id="rndHistHead"></span>
+          </div>
+          <canvas id="chRndHist"></canvas>
+          <div class="note" id="rndHistNote"></div>
+        </div>
+        <div class="chart">
+          <div class="chart-head">
+            <h3>N 次搜索的最大 |RankIC|：零假设期望 vs 随机组实测</h3>
+            <label class="chk"><input type="checkbox" id="biasLog" checked> 对数横轴</label>
+          </div>
+          <div class="lg">
+            <span class="i"><i class="sw" style="background:#8b9b9e"></i>零假设期望 sqrt(2·lnN / T)</span>
+            <span class="i"><i class="sw" style="background:#6fb3a8"></i>随机组实测</span>
+          </div>
+          <canvas id="chBias"></canvas>
+          <div class="note" id="biasNote"></div>
+        </div>
+      </div>
+      <div class="callout">
+        <b>候选越多，历史最好成绩越好看。</b>
+        即使所有候选的真实均值都是 0，只要评价次数够多，总能挑出一个「看起来很显著」的因子。
+        所以本页所有结论都以冻结后的样本外为准，训练期的最好成绩只作为搜索强度的度量。
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">
+        <h2>最佳随机公式：训练 vs 样本外</h2>
+        <span class="hint">训练期得分最高的随机公式，在同一标签与同一证券池上做一次样本外评价</span>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>公式</th>
+              <th class="num">训练 RankIC</th>
+              <th class="num">训练 t</th>
+              <th class="num">样本外 RankIC</th>
+              <th class="num">衰减（OOS − 训练）</th>
+            </tr>
+          </thead>
+          <tbody id="rndBest"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">
+        <h2>随机公式明细</h2>
+        <span class="hint">按 |RankIC| 降序；条形长度相对于本组最大值</span>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th class="num">#</th>
+              <th>公式</th>
+              <th class="num">RankIC</th>
+              <th class="num">t</th>
+              <th>|RankIC|</th>
+            </tr>
+          </thead>
+          <tbody id="rndItems"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ 样本外 ============================ -->
+  <section class="panel" id="panel-oos" role="tabpanel" aria-labelledby="tab-oos" hidden>
+    <div class="sec">
+      <div class="chart">
+        <div class="chart-head">
+          <h3>样本外净值曲线（扣费）</h3>
+          <span class="hh" id="eqHead"></span>
+        </div>
+        <div class="legend" id="oosLegend" style="margin:0 0 6px"></div>
+        <canvas id="chEquity"></canvas>
+        <div class="note" id="eqNote"></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">
+        <h2>样本外指标</h2>
+        <span class="hint">净值口径：初始 10 亿、合成分数前 100 只等权、每 5 个交易日调仓、扣佣金与印花税与滑点</span>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>组别</th>
+              <th class="num">样本外 RankIC</th>
+              <th class="num">t</th>
+              <th class="num">交易日</th>
+              <th class="num">扣费净收益</th>
+              <th class="num">同池等权</th>
+              <th class="num">超额</th>
+              <th class="num">最大回撤</th>
+              <th class="num">年化换手</th>
+              <th class="num">成本</th>
+              <th class="num">期末持仓</th>
+              <th class="num">夏普</th>
+            </tr>
+          </thead>
+          <tbody id="oosBody"></tbody>
+        </table>
+      </div>
+      <div class="note">
+        同池等权是把该组最终池覆盖到的证券等权持有、零成本，用来分离「选股」与「分散度」；
+        两者的超额不能全部读成因子的 alpha。成本按全账户累计现金支出计，期末持仓为最后一日的持仓市值。
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">
+        <h2>池成员与样本外表现</h2>
+        <span class="hint">合成方式：各成员按训练期 IC 方向对齐后做等权秩平均</span>
+      </div>
+      <div id="oosMembers"></div>
+    </div>
+  </section>
+
+  <!-- ============================ 方法 ============================ -->
+  <section class="panel" id="panel-method" role="tabpanel" aria-labelledby="tab-method" hidden>
+    <div class="sec prose" id="methodWrap"></div>
+  </section>
+
+  <footer>
+    <div class="row">
+      <span>数据：data/evolution.json · 由 run_evolution.py 生成 · 页面为单文件离线报告</span>
+      <span id="footMeta"></span>
+    </div>
+    <div class="row">
+      <span>本页不加载任何外部资源；若表格或图表空白，请确认已通过本地 HTTP 服务打开，且 data/evolution.json 存在。</span>
+    </div>
+  </footer>
+</div>
+
+<div id="tip" class="tip" hidden></div>
+
+<div id="fatal" class="fatal" hidden>
+  <div class="box">
+    <h2>数据未能载入</h2>
+    <p>本页需要读取同目录下的 <code>data/evolution.json</code>。浏览器对 <code>fetch()</code> 有同源限制，
+      直接双击以 <code>file://</code> 打开时会被拦截，必须通过本地 HTTP 服务访问。</p>
+    <p>在仓库目录（<code>.repo/issue5</code>）执行：</p>
+    <pre>python -m http.server 8000</pre>
+    <p style="margin-top:10px">然后打开 <code>http://localhost:8000/evolution.html</code>。</p>
+    <pre id="fatalDetail"></pre>
+  </div>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+/* =====================================================================
+   常量
+   ===================================================================== */
+var DATA_URL = 'data/evolution.json';
+var RENDER_LIMIT = 300;
+
+var C = {
+  gold: '#d6b279', gold2: '#b3925c', teal: '#6fb3a8', blue: '#7f9fc2',
+  red: '#d38b7f', green: '#8fc7a2', violet: '#b6a0c8', amber: '#d9b06a',
+  ink: '#e9ece7', ink2: '#c3ccc8', muted: '#8b9b9e', dim: '#62757a',
+  grid: '#1d282b', grid2: '#2b3a3e', panel: '#11181b'
+};
+var SANS = '"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif';
+var MONO = '"Cascadia Mono",Consolas,"Liberation Mono",monospace';
+
+var ARM_COLORS = {baseline: C.gold, harness: C.teal, learning: C.blue, random: C.violet};
+var ARM_FALLBACK = {baseline: '基线', harness: 'Harness', learning: '学习', random: '随机对照'};
+var ARM_DESC_FALLBACK = {
+  baseline: '固定流程：只保留一个当前最优，子代均匀变异，|RankIC| 更高就替换',
+  harness: '因子池 + 多样性 + 相关/增量门控 + 按接受率调整变异算子',
+  learning: '在 Harness 之上加候选评分器：先按结构特征预测质量，只对预测更好的候选做完整评价',
+  random: '纯随机公式，不迭代、不门控；用于估计「搜索次数本身」能造出多好的成绩'
+};
+
+var REASONS = {
+  accepted: {label: '接受', cls: 'c-ok'},
+  pass: {label: '通过门控', cls: 'c-ok'},
+  seed: {label: '种子入选', cls: 'c-teal'},
+  better: {label: '优于当前最优', cls: 'c-ok'},
+  redundant: {label: '与池内高度相关', cls: 'c-red'},
+  no_increment: {label: '增量不足', cls: 'c-amber'},
+  't<2': {label: 't 值不足', cls: 'c-violet'},
+  weak_ic: {label: '|IC| 过弱', cls: 'c-dim'},
+  coverage: {label: '覆盖不足', cls: 'c-dim'},
+  no_stats: {label: '评价失败', cls: 'c-dim'},
+  not_better: {label: '未超过当前最优', cls: 'c-blue'},
+  not_selected: {label: '同轮未入选', cls: 'c-blue'},
+  weaker_than_pool: {label: '弱于池内最差', cls: 'c-blue'},
+  replaced: {label: '后被替换', cls: 'c-amber'},
+  seed_unused: {label: '种子未使用', cls: 'c-dim'},
+  filtered_by_model: {label: '模型筛除', cls: 'c-teal'}
+};
+
+/* =====================================================================
+   基础工具
+   ===================================================================== */
+function $(id) { return document.getElementById(id); }
+
+function isNum(v) { return typeof v === 'number' && isFinite(v); }
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+  });
+}
+
+function cleanText(s) {
+  if (typeof s !== 'string') return '';
+  var t = s.trim();
+  if (!t) return '';
+  if (t.indexOf('\uFFFD') >= 0) return '';
+  return t;
+}
+
+function f4(v) { return isNum(v) ? (v >= 0 ? '+' : '') + v.toFixed(4) : '—'; }
+function f4a(v) { return isNum(v) ? Math.abs(v).toFixed(4) : '—'; }
+function f2(v) { return isNum(v) ? (v >= 0 ? '+' : '') + v.toFixed(2) : '—'; }
+function fint(v) {
+  if (!isNum(v)) return '—';
+  return String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+function pct(v, d) {
+  if (!isNum(v)) return '—';
+  d = (d == null) ? 2 : d;
+  return (v >= 0 ? '+' : '') + (v * 100).toFixed(d) + '%';
+}
+function pp(v) {
+  if (!isNum(v)) return '—';
+  return (v >= 0 ? '+' : '') + (v * 100).toFixed(2) + 'pp';
+}
+function yi(v) {
+  if (!isNum(v)) return '—';
+  return (v / 1e8).toFixed(3) + ' 亿';
+}
+function sc(v) { return isNum(v) ? (v > 0 ? 'pos' : (v < 0 ? 'neg' : '')) : 'dim'; }
+
+function nameOf(a) {
+  if (!a) return '—';
+  return cleanText(a.name) || ARM_FALLBACK[a.key] || String(a.key || '—');
+}
+function descOf(a) {
+  if (!a) return '';
+  return cleanText(a.desc) || ARM_DESC_FALLBACK[a.key] || '';
+}
+function colorOf(a) {
+  if (!a) return C.ink2;
+  return ARM_COLORS[a.key] || C.ink2;
+}
+
+function chip(text, cls, title) {
+  return '<span class="chip ' + (cls || '') + '"' +
+    (title ? ' title="' + esc(title) + '"' : '') + '>' + esc(text) + '</span>';
+}
+function armChip(a) {
+  return '<span class="chip" style="--c:' + colorOf(a) + '">' + esc(nameOf(a)) + '</span>';
+}
+function reasonLabel(k) {
+  var r = REASONS[k];
+  return r ? r.label : (k || '—');
+}
+function reasonChip(k) {
+  var r = REASONS[k];
+  return chip(reasonLabel(k), r ? r.cls : 'c-dim', 'reason = ' + k);
+}
+function numCell(html, cls) {
+  return '<td class="num ' + (cls || '') + '">' + html + '</td>';
+}
+
+function uniqueSorted(arr) {
+  var out = [];
+  arr.forEach(function (v) { if (isNum(v) && out.indexOf(v) < 0) out.push(v); });
+  out.sort(function (a, b) { return a - b; });
+  return out;
+}
+
+function rgba(hex, a) {
+  var h = hex.replace('#', '');
+  var r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+}
+
+/* =====================================================================
+   状态
+   ===================================================================== */
+var state = {
+  data: null,
+  arms: [],
+  candRows: [],
+  candArm: 'all',
+  candResult: 'all',
+  candSort: {key: 'absIc', dir: -1},
+  showMean: false,
+  biasLog: true,
+  hiddenArms: {},
+  equityDates: [],
+  charts: [],
+  activeTab: 'overview'
+};
+
+/* =====================================================================
+   数据载入
+   ===================================================================== */
+async function loadData() {
+  var res = await fetch(DATA_URL, {cache: 'no-store'});
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + (res.statusText || '') + ' · ' + DATA_URL);
+  var buf = await res.arrayBuffer();
+  var text = null;
+  try {
+    text = new TextDecoder('utf-8', {fatal: true}).decode(buf);
+  } catch (e1) {
+    try {
+      text = new TextDecoder('gbk').decode(buf);
+    } catch (e2) {
+      text = new TextDecoder('utf-8').decode(buf);
+    }
+  }
+  text = text.replace(/^\uFEFF/, '');
+  // Python json.dump 可能写出 NaN / Infinity，JSON.parse 不接受
+  text = text.replace(/([:,])\s*-?(?:NaN|Infinity)\b/g, '$1null');
+  try {
+    return JSON.parse(text);
+  } catch (e3) {
+    throw new Error('evolution.json 不是合法 JSON：' + e3.message);
+  }
+}
+
+function prepareData(raw) {
+  if (!raw || typeof raw !== 'object') throw new Error('evolution.json 顶层不是对象');
+  if (!Array.isArray(raw.arms)) throw new Error('evolution.json 缺少 arms 数组');
+  raw.meta = raw.meta || {};
+  raw.random = raw.random || {};
+  raw.learning = raw.learning || {};
+  raw.selection_bias = raw.selection_bias || {};
+  state.data = raw;
+  state.arms = raw.arms.filter(function (a) { return a && typeof a === 'object'; });
+  state.arms.forEach(function (a) {
+    a.pool = Array.isArray(a.pool) ? a.pool : [];
+    a.trace = Array.isArray(a.trace) ? a.trace : [];
+    a.oos = (a.oos && typeof a.oos === 'object') ? a.oos : {};
+    a.oos.members = Array.isArray(a.oos.members) ? a.oos.members : [];
+    a.equity = (a.equity && typeof a.equity === 'object') ? a.equity : {};
+    a.equity.dates = Array.isArray(a.equity.dates) ? a.equity.dates : [];
+    a.equity.nav = Array.isArray(a.equity.nav) ? a.equity.nav : [];
+    a.equity.bench = Array.isArray(a.equity.bench) ? a.equity.bench : [];
+  });
+  if (!state.arms.length) throw new Error('evolution.json 的 arms 为空');
+}
+
+/* =====================================================================
+   页头
+   ===================================================================== */
+function range(arr) {
+  return (Array.isArray(arr) && arr.length >= 2 && arr[0] && arr[1]) ? (arr[0] + ' → ' + arr[1]) : '—';
+}
+
+function renderHeader() {
+  var m = state.data.meta || {};
+  var seeds = Array.isArray(m.seeds) ? m.seeds : [];
+  $('stamp').textContent = m.generated ? ('数据版本 · ' + m.generated) : '数据版本 · —';
+
+  var items = [
+    ['训练区间', range(m.train)],
+    ['验证区间', range(m.valid)],
+    ['样本外区间', range(m.oos)],
+    ['证券数', isNum(m.n_codes) ? fint(m.n_codes) + ' 只' : '—'],
+    ['训练交易日', isNum(m.n_train_days) ? fint(m.n_train_days) + ' 日' : '—'],
+    ['评价预算', isNum(m.budget) ? ('每组 ' + fint(m.budget) + ' 次完整评价 · ' + fint(m.rounds) + ' 轮') : '—'],
+    ['初始因子', seeds.length ? (seeds.length + ' 个，四组共享') : '—']
+  ];
+  $('metaLine').innerHTML = items.map(function (kv) {
+    return '<span class="meta-item"><em>' + esc(kv[0]) + '</em><span class="v">' + esc(kv[1]) + '</span></span>';
+  }).join('');
+
+  var label = cleanText(m.label);
+  if (label) {
+    $('metaLine').insertAdjacentHTML('beforeend',
+      '<span class="meta-item"><em>标签口径</em><span class="v">' + esc(label) + '</span></span>');
+  }
+  var costs = cleanText(m.costs);
+  if (costs) {
+    $('metaLine').insertAdjacentHTML('beforeend',
+      '<span class="meta-item"><em>费用口径</em><span class="v">' + esc(costs) + '</span></span>');
+  }
+
+  var intros = state.arms.map(function (a) {
+    return '<div class="intro" style="--c:' + colorOf(a) + '">' +
+      '<div class="intro-top"><span class="intro-name">' + esc(nameOf(a)) + '</span>' +
+      '<span class="intro-key">' + esc(a.key || '') + '</span></div>' +
+      '<p>' + esc(descOf(a)) + '</p></div>';
+  });
+  intros.push('<div class="intro" style="--c:' + C.violet + '">' +
+    '<div class="intro-top"><span class="intro-name">随机对照</span>' +
+    '<span class="intro-key">random</span></div>' +
+    '<p>' + esc(ARM_DESC_FALLBACK.random) + '</p></div>');
+  $('introGrid').innerHTML = intros.join('');
+
+  var foot = [];
+  if (m.generated) foot.push('生成于 ' + m.generated);
+  foot.push(state.arms.length + ' 个演化组');
+  if (isNum(state.data.random.n)) foot.push('随机组 ' + fint(state.data.random.n) + ' 个公式');
+  $('footMeta').textContent = foot.join(' · ');
+}
+
+/* =====================================================================
+   标签页
+   ===================================================================== */
+var RENDERERS = {};
+
+function tabFromHash() {
+  var h = String(location.hash || '').replace(/^#/, '');
+  return RENDERERS[h] ? h : 'overview';
+}
+
+function switchTab(name) {
+  if (!RENDERERS[name]) name = 'overview';
+  state.activeTab = name;
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) {
+    var on = b.getAttribute('data-tab') === name;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.panel'), function (p) {
+    p.hidden = (p.id !== 'panel-' + name);
+  });
+  hideTip();
+  RENDERERS[name]();
+  if (String(location.hash || '').replace(/^#/, '') !== name) {
+    try { history.replaceState(null, '', '#' + name); } catch (e) { /* file:// 下可能被拒 */ }
+  }
+}
+
+/* =====================================================================
+   总览
+   ===================================================================== */
+function bestMember(pool) {
+  var best = null;
+  pool.forEach(function (p) {
+    if (!p || !isNum(p.rank_ic)) return;
+    if (!best || Math.abs(p.rank_ic) > Math.abs(best.rank_ic)) best = p;
+  });
+  return best;
+}
+function meanAbsIC(pool) {
+  var vals = pool.map(function (p) { return isNum(p && p.rank_ic) ? Math.abs(p.rank_ic) : null; })
+    .filter(isNum);
+  if (!vals.length) return null;
+  var s = 0;
+  vals.forEach(function (v) { s += v; });
+  return s / vals.length;
+}
+
+function armCard(a) {
+  var o = a.oos || {};
+  var pool = a.pool || [];
+  var best = bestMember(pool);
+  var rows = [
+    ['完整评价', fint(a.evals) + ' 次', ''],
+    ['接受数', fint(a.accepts) + ' 个', ''],
+    ['训练池最好 |RankIC|', f4a(best ? best.rank_ic : null), ''],
+    ['训练池均值 |RankIC|', f4a(meanAbsIC(pool)), ''],
+    ['样本外 RankIC', f4(o.rank_ic), sc(o.rank_ic)],
+    ['扣费净收益', pct(o.net_return), sc(o.net_return)],
+    ['超额 vs 同池等权', pp(o.excess), sc(o.excess)]
+  ];
+  return '<article class="kpi" style="--c:' + colorOf(a) + '">' +
+    '<div class="kpi-top"><h3>' + esc(nameOf(a)) + '</h3>' +
+    chip(a.key || '', '', 'arm.key = ' + (a.key || '')) + '</div>' +
+    '<p class="kpi-desc">' + esc(descOf(a)) + '</p>' +
+    rows.map(function (r) {
+      return '<div class="stat"><span class="k">' + esc(r[0]) + '</span>' +
+        '<span class="v ' + r[2] + '">' + esc(r[1]) + '</span></div>';
+    }).join('') +
+    '<div class="kpi-foot">池内 ' + pool.length + ' 个成员 · 样本外 ' +
+    (isNum(o.n) ? fint(o.n) : '—') + ' 个交易日</div>' +
+    '</article>';
+}
+
+function randomCard() {
+  var r = state.data.random || {};
+  var decay = (isNum(r.best_oos_ic) && isNum(r.best_train_vs_oos)) ? (r.best_oos_ic - r.best_train_vs_oos) : null;
+  var rows = [
+    ['随机公式数', fint(r.n) + ' 个', ''],
+    ['训练最好 |RankIC|', f4a(r.max_ic), ''],
+    ['训练 |RankIC| 中位数', f4a(r.median_ic), ''],
+    ['样本外 RankIC（最佳公式）', f4(r.best_oos_ic), sc(r.best_oos_ic)],
+    ['训练 → 样本外', f4(r.best_train_vs_oos) + ' → ' + f4(r.best_oos_ic), ''],
+    ['变化（OOS − 训练）', f4(decay), sc(decay)],
+    ['接受 / 拒绝', '不适用（不迭代）', 'dim']
+  ];
+  var best = r.best || {};
+  return '<article class="kpi" style="--c:' + C.violet + '">' +
+    '<div class="kpi-top"><h3>随机对照</h3>' + chip('random', '') + '</div>' +
+    '<p class="kpi-desc">' + esc(ARM_DESC_FALLBACK.random) + '</p>' +
+    rows.map(function (x) {
+      return '<div class="stat"><span class="k">' + esc(x[0]) + '</span>' +
+        '<span class="v ' + x[2] + '">' + esc(x[1]) + '</span></div>';
+    }).join('') +
+    '<div class="kpi-foot">最佳公式：' + esc(best.formula || '—') + '</div>' +
+    '</article>';
+}
+
+function roundRows() {
+  var out = [];
+  state.arms.forEach(function (a) {
+    var trace = a.trace.slice().sort(function (x, y) { return (x.round || 0) - (y.round || 0); });
+    if (!trace.length) {
+      out.push('<tr><td>' + armChip(a) + '</td>' + numCell('—') + numCell('—') + numCell('—') +
+        '<td class="dim">无轮次记录</td>' + numCell('—') + numCell('—') + '</tr>');
+      return;
+    }
+    trace.forEach(function (t) {
+      var rej = Object.keys(t.rejects || {}).filter(function (k) { return t.rejects[k]; })
+        .sort(function (k1, k2) { return t.rejects[k2] - t.rejects[k1]; })
+        .map(function (k) { return reasonChip(k) + ' <span class="sub">×' + t.rejects[k] + '</span>'; })
+        .join(' &nbsp;');
+      out.push('<tr>' +
+        '<td>' + armChip(a) + '</td>' +
+        numCell(isNum(t.round) ? String(t.round) : '—') +
+        numCell(isNum(t.evals) ? String(t.evals) : '—') +
+        numCell(isNum(t.accepts) ? String(t.accepts) : '—', t.accepts > 0 ? 'pos' : 'dim') +
+        '<td>' + (rej || '<span class="dim">无</span>') + '</td>' +
+        numCell(f4a(t.best_ic)) +
+        numCell(f4a(t.pool_mean_ic)) +
+        '</tr>');
+    });
+  });
+  return out.join('') || '<tr class="empty-row"><td colspan="7">没有轮次数据</td></tr>';
+}
+
+function renderOverview() {
+  resetCharts();
+  $('ovCards').innerHTML = state.arms.map(armCard).join('') + randomCard();
+  $('ovRoundBody').innerHTML = roundRows();
+  $('chkMean').checked = !!state.showMean;
+
+  $('bestICLegend').innerHTML = state.arms.map(function (a) {
+    return '<span class="i"><i class="sw" style="background:' + colorOf(a) + '"></i>' + esc(nameOf(a)) + '</span>';
+  }).join('');
+
+  var rounds = [];
+  state.arms.forEach(function (a) { a.trace.forEach(function (t) { rounds.push(t.round); }); });
+  var rs = uniqueSorted(rounds);
+  var sig = {};
+  state.arms.forEach(function (a) {
+    if (!a.trace.length) return;
+    var k = a.trace.map(function (t) { return isNum(t.best_ic) ? Math.abs(t.best_ic).toFixed(6) : '-'; }).join(',');
+    sig[k] = (sig[k] || 0) + 1;
+  });
+  var dupLine = Object.keys(sig).some(function (k) { return sig[k] > 1; });
+  $('bestICNote').innerHTML = rs.length
+    ? '横轴为轮次编号（R1 起），纵轴为 |RankIC|；每条线的取值是该轮结束时池内最好的 |RankIC|，' +
+      '因此曲线只升不降——它记录的是「搜索历史的高点」，不是泛化能力。' +
+      (dupLine ? ' 两条线完全重合表示两组在该轮得到相同的池内最好 |RankIC|（常来自四组共享的种子因子）。' : '')
+    : '当前数据没有轮次记录。';
+
+  mountChart($('chBestIC'), paintBestIC);
+}
+
+/* =====================================================================
+   候选
+   ===================================================================== */
+function buildCandidates() {
+  var rows = [];
+  state.arms.forEach(function (a) {
+    var extra = Array.isArray(a.candidates) ? a.candidates.filter(function (c) { return c && c.formula; }) : [];
+    var list;
+    if (extra.length) {
+      list = extra;
+    } else {
+      list = (a.pool || []).map(function (p) {
+        var copy = {};
+        Object.keys(p || {}).forEach(function (k) { copy[k] = p[k]; });
+        if (copy.accepted === undefined) copy.accepted = true;
+        if (!copy.reason) copy.reason = 'accepted';
+        return copy;
+      });
+    }
+    list.forEach(function (p) {
+      if (!p || !p.formula) return;
+      var accepted = p.accepted === false ? false : true;
+      rows.push({
+        arm: a.key,
+        armName: nameOf(a),
+        cid: p.cid || '',
+        formula: String(p.formula),
+        nodes: isNum(p.nodes) ? p.nodes : null,
+        round: isNum(p.round) ? p.round : null,
+        parent: p.parent || '',
+        rank_ic: isNum(p.rank_ic) ? p.rank_ic : null,
+        t: isNum(p.t) ? p.t : null,
+        corr: isNum(p.corr) ? p.corr : null,
+        incr: isNum(p.incr) ? p.incr : null,
+        accepted: accepted,
+        reason: (typeof p.reason === 'string' && p.reason) ? p.reason : (accepted ? 'accepted' : '')
+      });
+    });
+  });
+  state.candRows = rows;
+}
+
+function buildCandFilters() {
+  var sel = $('candArm');
+  var opts = ['<option value="all">全部</option>'];
+  state.arms.forEach(function (a) {
+    opts.push('<option value="' + esc(a.key) + '">' + esc(nameOf(a)) + '</option>');
+  });
+  sel.innerHTML = opts.join('');
+  var known = state.arms.some(function (a) { return a.key === state.candArm; });
+  if (!known) state.candArm = 'all';
+  sel.value = state.candArm;
+  $('candResult').value = state.candResult;
+}
+
+function rejectSummary() {
+  var counts = {};
+  state.arms.forEach(function (a) {
+    (a.trace || []).forEach(function (t) {
+      Object.keys(t.rejects || {}).forEach(function (k) {
+        var v = t.rejects[k];
+        if (isNum(v) && v > 0) counts[k] = (counts[k] || 0) + v;
+      });
+    });
+  });
+  var keys = Object.keys(counts).sort(function (x, y) { return counts[y] - counts[x]; });
+  if (!keys.length) {
+    $('candReject').innerHTML = '<span class="dim" style="font-size:10.5px">本数据没有拒绝统计</span>';
+    return;
+  }
+  $('candReject').innerHTML = '<span class="dim" style="font-size:10.5px;margin-right:4px">轮次级拒绝统计</span>' +
+    keys.map(function (k) {
+      return '<span class="rc">' + reasonChip(k) + '<span class="sub">×' + counts[k] + '</span></span>';
+    }).join('');
+}
+
+function candLegend() {
+  var keys = ['redundant', 'no_increment', 't<2', 'weak_ic', 'not_better', 'weaker_than_pool', 'replaced', 'filtered_by_model'];
+  $('candLegend').innerHTML = '<span class="dim" style="font-size:10.5px;margin-right:4px">原因图例</span>' +
+    keys.map(function (k) { return reasonChip(k); }).join('');
+}
+
+function candSortValue(r, key) {
+  if (key === 'absIc') return isNum(r.rank_ic) ? Math.abs(r.rank_ic) : null;
+  if (key === 'arm') return r.armName;
+  if (key === 'formula') return r.formula;
+  if (key === 'result') return r.accepted ? 0 : 1;
+  var v = r[key];
+  return isNum(v) ? v : null;
+}
+
+function sortCandRows(rows) {
+  var key = state.candSort.key, dir = state.candSort.dir;
+  var copy = rows.slice();
+  copy.sort(function (a, b) {
+    var va = candSortValue(a, key), vb = candSortValue(b, key);
+    var na = (va === null || va === undefined), nb = (vb === null || vb === undefined);
+    if (na && nb) return 0;
+    if (na) return 1;
+    if (nb) return -1;
+    var cmp;
+    if (typeof va === 'string' || typeof vb === 'string') {
+      cmp = String(va).localeCompare(String(vb), 'zh-CN');
+    } else {
+      cmp = va - vb;
+    }
+    return cmp * dir;
+  });
+  return copy;
+}
+
+function resultCell(r) {
+  if (r.accepted) {
+    var extra = (r.reason && r.reason !== 'accepted' && REASONS[r.reason]) ? ' · ' + reasonLabel(r.reason) : '';
+    return '<span class="chip c-ok" title="reason = ' + esc(r.reason || 'accepted') + '">接受' + esc(extra) + '</span>';
+  }
+  return reasonChip(r.reason || 'rejected');
+}
+
+function paintCandTable() {
+  var rows = state.candRows.slice();
+  if (state.candArm !== 'all') rows = rows.filter(function (r) { return r.arm === state.candArm; });
+  if (state.candResult === 'accepted') rows = rows.filter(function (r) { return r.accepted; });
+  if (state.candResult === 'rejected') rows = rows.filter(function (r) { return !r.accepted; });
+
+  var accepted = rows.filter(function (r) { return r.accepted; }).length;
+  var rejected = rows.length - accepted;
+  var sorted = sortCandRows(rows);
+  var shown = sorted.slice(0, RENDER_LIMIT);
+
+  var body = $('candBody');
+  if (!shown.length) {
+    body.innerHTML = '<tr class="empty-row"><td colspan="9">没有满足条件的候选</td></tr>';
+  } else {
+    body.innerHTML = shown.map(function (r) {
+      var fx = '<div class="fx" title="' + esc(r.formula) + '">' + esc(r.formula) + '</div>';
+      return '<tr>' +
+        numCell(isNum(r.round) ? String(r.round) : '—', isNum(r.round) ? '' : 'dim') +
+        '<td>' + esc(r.armName) + (r.cid ? '<span class="sub cid">' + esc(r.cid) + '</span>' : '') + '</td>' +
+        '<td class="fxcell">' + fx + '</td>' +
+        numCell(isNum(r.nodes) ? String(r.nodes) : '—') +
+        numCell(f4(r.rank_ic), sc(r.rank_ic)) +
+        numCell(f2(r.t), sc(r.t)) +
+        numCell(isNum(r.corr) ? r.corr.toFixed(3) : '—') +
+        numCell(f4(r.incr), sc(r.incr)) +
+        '<td>' + resultCell(r) + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  var sortName = {
+    absIc: '|RankIC| 降序', round: '轮次', arm: '组别', formula: '公式', nodes: '节点数',
+    rank_ic: 'RankIC', t: 't', corr: '与池最大相关', incr: '增量 IC', result: '结果'
+  }[state.candSort.key] || state.candSort.key;
+  var sortDir = state.candSort.dir > 0 ? '升序' : '降序';
+  var noRound = rows.every(function (r) { return r.round === null; });
+
+  $('candCount').textContent = '共 ' + fint(rows.length) + ' 行 · 接受 ' + fint(accepted) +
+    ' · 拒绝 ' + fint(rejected) + (rows.length > RENDER_LIMIT ? (' · 仅渲染前 ' + RENDER_LIMIT + ' 行') : '');
+  $('candNote').innerHTML = (rows.length > RENDER_LIMIT
+    ? '<b>当前只渲染前 ' + RENDER_LIMIT + ' 行</b>（共 ' + fint(rows.length) + ' 行）。用组别/结果过滤或点击表头排序来查看其余记录。'
+    : '当前排序：' + esc(sortName) + ' · ' + sortDir + '。点击表头可切换排序。') +
+    (noRound ? ' 池条目未记录轮次，因此「轮次」列显示为「—」。' : '') +
+    ' 每条记录对应一次完整评价；被拒记录是否导出取决于 evolution.json 是否包含 candidates 字段。';
+
+  Array.prototype.forEach.call($('candHead').children, function (th) {
+    var k = th.getAttribute('data-key');
+    var on = (k === state.candSort.key) || (state.candSort.key === 'absIc' && k === 'rank_ic');
+    th.innerHTML = th.textContent.replace(/[▲▼]\s*$/, '').trim() +
+      (on ? '<span class="ar">' + (state.candSort.dir > 0 ? '▲' : '▼') + '</span>' : '');
+  });
+}
+
+function renderCandidates() {
+  resetCharts();
+  buildCandidates();
+  buildCandFilters();
+  rejectSummary();
+  candLegend();
+  paintCandTable();
+}
+
+/* =====================================================================
+   谱系
+   ===================================================================== */
+function lineageArm(a, seeds) {
+  var pool = (a.pool || []).filter(function (p) { return p && p.formula; });
+  var rows = pool.map(function (p) {
+    return {
+      cid: p.cid || '',
+      parent: p.parent || '',
+      round: isNum(p.round) ? p.round : null,
+      formula: String(p.formula),
+      ic: isNum(p.rank_ic) ? p.rank_ic : null,
+      nodes: isNum(p.nodes) ? p.nodes : null
+    };
+  });
+
+  var byCid = {};
+  rows.forEach(function (r) { if (r.cid) byCid[r.cid] = r; });
+  rows.forEach(function (r) {
+    var d = 0, p = r.parent, guard = {};
+    while (p && byCid[p] && !guard[p] && d < 12) { guard[p] = 1; d++; p = byCid[p].parent; }
+    r.depth = d;
+  });
+  rows.sort(function (x, y) {
+    if (x.depth !== y.depth) return x.depth - y.depth;
+    var rx = isNum(x.round) ? x.round : 0, ry = isNum(y.round) ? y.round : 0;
+    if (rx !== ry) return rx - ry;
+    return Math.abs(y.ic || 0) - Math.abs(x.ic || 0);
+  });
+
+  var seedChips = seeds.map(function (s) {
+    if (!s || typeof s !== 'object') return '';
+    var nm = cleanText(s.name) || '—';
+    var fm = typeof s.formula === 'string' ? s.formula : '';
+    return '<span class="seedchip" title="' + esc(fm) + '">' + esc(nm) + '</span>';
+  }).join('');
+
+  var body = rows.length ? rows.map(function (r) {
+    var indent = r.depth * 16;
+    var branch = r.depth ? '<span class="branch">└</span>' : '';
+    return '<tr>' +
+      '<td class="mono" style="white-space:nowrap"><span class="tree" style="padding-left:' + indent + 'px">' +
+      branch + esc(r.cid || '—') + '</span></td>' +
+      '<td class="mono">' + (r.parent ? '<span class="branch">→</span>' + esc(r.parent) : '<span class="dim">—</span>') + '</td>' +
+      numCell(isNum(r.round) ? String(r.round) : '—', isNum(r.round) ? '' : 'dim') +
+      '<td class="fxcell"><div class="fx" title="' + esc(r.formula) + '">' + esc(r.formula) + '</div></td>' +
+      numCell(f4a(r.ic)) +
+      numCell(isNum(r.nodes) ? String(r.nodes) : '—') +
+      '</tr>';
+  }).join('') : '<tr class="empty-row"><td colspan="6">该组没有被接受的候选</td></tr>';
+
+  return '<section class="lineage" style="--c:' + colorOf(a) + '">' +
+    '<div class="lineage-head"><h3>' + esc(nameOf(a)) + '</h3>' +
+    '<span class="meta">接受 ' + fint(a.accepts) + ' · 池内 ' + pool.length + ' · 完整评价 ' + fint(a.evals) + '</span></div>' +
+    '<div class="seedrow"><span class="lab">种子（四组共享）</span>' +
+    (seedChips || '<span class="dim">—</span>') + '</div>' +
+    '<div class="flow">↓ 变异 / 交叉，父代可能已被替换</div>' +
+    '<div class="tbl-wrap" style="border:0">' +
+    '<table class="tbl fixed"><colgroup><col style="width:112px"><col style="width:100px">' +
+    '<col style="width:56px"><col><col style="width:88px"><col style="width:64px"></colgroup>' +
+    '<thead><tr><th>cid</th><th>父代 cid</th><th class="num">轮次</th>' +
+    '<th>公式</th><th class="num">|RankIC|</th><th class="num">节点数</th></tr></thead>' +
+    '<tbody>' + body + '</tbody></table></div></section>';
+}
+
+function renderLineage() {
+  resetCharts();
+  var m = state.data.meta || {};
+  var seeds = Array.isArray(m.seeds) ? m.seeds : [];
+  $('lineageWrap').innerHTML = state.arms.map(function (a) { return lineageArm(a, seeds); }).join('');
+  var anyParent = state.arms.some(function (a) {
+    return (a.pool || []).some(function (p) { return p && p.parent; });
+  });
+  $('lineageMissing').hidden = anyParent;
+}
+
+/* =====================================================================
+   随机对照
+   ===================================================================== */
+function renderRandom() {
+  resetCharts();
+  var r = state.data.random || {};
+  var b = state.data.selection_bias || {};
+  var ns = Array.isArray(b.n) ? b.n : [];
+
+  var decay = (isNum(r.best_oos_ic) && isNum(r.best_train_vs_oos)) ? (r.best_oos_ic - r.best_train_vs_oos) : null;
+  var stats = [
+    ['随机公式数', fint(r.n) + ' 个', ''],
+    ['训练 |RankIC| 中位数', f4a(r.median_ic), ''],
+    ['训练 |RankIC| 最大', f4a(r.max_ic), ''],
+    ['样本外 RankIC（最佳）', f4(r.best_oos_ic), sc(r.best_oos_ic)],
+    ['训练 → 样本外', f4(r.best_train_vs_oos) + ' → ' + f4(r.best_oos_ic), ''],
+    ['变化（OOS − 训练）', f4(decay), sc(decay)],
+    ['搜索次数 N 的取值', ns.length ? ns.join(' / ') : '—', '']
+  ];
+  var best = r.best || {};
+  $('rndStats').innerHTML = '<article class="kpi" style="--c:' + C.violet + ';grid-column:1/-1">' +
+    '<div class="kpi-top"><h3>随机对照</h3><span class="chip">random_candidates</span></div>' +
+    '<p class="kpi-desc">纯随机表达式树（不迭代、不门控）。它不追求表现，只提供两件事：' +
+    '一是训练期得分的自然分布，二是「搜索 N 次能达到的最好成绩」的实测参照。</p>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0 26px">' +
+    stats.map(function (x) {
+      return '<div class="stat"><span class="k">' + esc(x[0]) + '</span>' +
+        '<span class="v ' + x[2] + '">' + esc(x[1]) + '</span></div>';
+    }).join('') +
+    '</div>' +
+    '<div class="kpi-foot">最佳随机公式：<span class="mono">' + esc(best.formula || '—') + '</span></div>' +
+    '</article>';
+
+  $('rndHistHead').textContent = isNum(r.n) ? ('n = ' + fint(r.n)) : '';
+  $('biasLog').checked = !!state.biasLog;
+  mountChart($('chRndHist'), paintRndHist);
+  mountChart($('chBias'), paintBias);
+
+  var items = (r.items || []).filter(function (it) { return it && isNum(it.rank_ic); });
+  var maxAbs = items.reduce(function (m, it) { return Math.max(m, Math.abs(it.rank_ic)); }, 0);
+
+  $('rndHistNote').innerHTML = '共 ' + fint(items.length) + ' 条导出明细' +
+    (isNum(r.n) && r.n > items.length ? '（evolution.json 只保留前 ' + fint(items.length) + ' 条，' +
+      '统计量仍按全部 ' + fint(r.n) + ' 条计算）' : '') +
+    '；训练 |RankIC| 中位数 ' + f4a(r.median_ic) + '，最大 ' + f4a(r.max_ic) + '。' +
+    '负值代表反向信号，在合成时取反方向使用，因此下文的比较一律用 |RankIC|。';
+
+  $('rndBest').innerHTML =
+    '<tr><td class="fxcell"><div class="fx" title="' + esc(best.formula || '') + '">' +
+    esc(best.formula || '—') + '</div></td>' +
+    numCell(f4(r.best_train_vs_oos), sc(r.best_train_vs_oos)) +
+    numCell(f2(best.t), sc(best.t)) +
+    numCell(f4(r.best_oos_ic), sc(r.best_oos_ic)) +
+    numCell(f4(decay), sc(decay)) +
+    '</tr>';
+
+  $('rndItems').innerHTML = items.slice().sort(function (x, y) {
+    return Math.abs(y.rank_ic) - Math.abs(x.rank_ic);
+  }).map(function (it, i) {
+    var w = maxAbs > 0 ? Math.abs(it.rank_ic) / maxAbs * 100 : 0;
+    var col = it.rank_ic >= 0 ? C.teal : C.red;
+    return '<tr>' +
+      numCell(String(i + 1), 'dim') +
+      '<td class="fxcell"><div class="fx" title="' + esc(it.formula) + '">' + esc(it.formula) + '</div></td>' +
+      numCell(f4(it.rank_ic), sc(it.rank_ic)) +
+      numCell(f2(it.t), sc(it.t)) +
+      '<td><span style="display:inline-block;height:6px;width:' + w.toFixed(1) + '%;min-width:2px;background:' +
+      rgba(col, .75) + '"></span></td>' +
+      '</tr>';
+  }).join('') || '<tr class="empty-row"><td colspan="5">没有随机候选明细</td></tr>';
+
+  var maxN = ns.length ? ns[ns.length - 1] : 0;
+  $('biasNote').innerHTML = '横轴为搜索次数 N，纵轴为 N 个候选里最大的 |RankIC|。' +
+    '零假设（真实均值为 0）下期望约为 <code>sqrt(2·lnN / T)</code>，T 为训练交易日数。' +
+    (isNum(r.n) && maxN > r.n
+      ? '<br><b>注意：</b>随机组只导出 ' + fint(r.n) + ' 个公式，N 超过 ' + fint(r.n) +
+        ' 时实测值退化为「全部样本的最大值」，因此实测线在右侧是水平的。'
+      : '');
+}
+
+/* =====================================================================
+   样本外
+   ===================================================================== */
+function oosRows() {
+  var rows = state.arms.map(function (a) {
+    var o = a.oos || {};
+    return '<tr>' +
+      '<td>' + armChip(a) + '</td>' +
+      numCell(f4(o.rank_ic), sc(o.rank_ic)) +
+      numCell(f2(o.t), sc(o.t)) +
+      numCell(isNum(o.n) ? fint(o.n) : '—') +
+      numCell(pct(o.net_return), sc(o.net_return)) +
+      numCell(pct(o.bench_return), sc(o.bench_return)) +
+      numCell(pp(o.excess), sc(o.excess)) +
+      numCell(pct(o.mdd), sc(o.mdd)) +
+      numCell(isNum(o.turnover) ? o.turnover.toFixed(2) + '×' : '—') +
+      numCell(yi(o.cost)) +
+      numCell(yi(o.residual_value)) +
+      numCell(isNum(o.sharpe) ? o.sharpe.toFixed(2) : '—', sc(o.sharpe)) +
+      '</tr>';
+  });
+  return rows.join('');
+}
+
+function oosMemberDetails() {
+  return state.arms.map(function (a) {
+    var members = (a.oos && a.oos.members) || [];
+    var body = members.length ? '<div class="tbl-wrap" style="border:0"><table class="tbl"><thead><tr>' +
+      '<th>cid</th><th>公式</th><th class="num">样本外 RankIC</th><th class="num">样本外 t</th></tr></thead><tbody>' +
+      members.map(function (m) {
+        return '<tr><td class="mono">' + esc(m.cid || '—') + '</td>' +
+          '<td class="fxcell"><div class="fx" title="' + esc(m.formula || '') + '">' + esc(m.formula || '—') + '</div></td>' +
+          numCell(f4(m.oos_rank_ic), sc(m.oos_rank_ic)) +
+          numCell(f2(m.oos_t), sc(m.oos_t)) + '</tr>';
+      }).join('') + '</tbody></table></div>' : '<div class="pad dim">该组没有导出成员明细</div>';
+
+    return '<details class="det"><summary><span>' + esc(nameOf(a)) + ' · 成员 ' + members.length +
+      '</span><span class="r">' + f4((a.oos || {}).rank_ic) + ' / t ' + f2((a.oos || {}).t) +
+      '</span></summary><div class="body">' + body + '</div></details>';
+  }).join('');
+}
+
+function oosLegend() {
+  var items = state.arms.map(function (a) {
+    var off = !!state.hiddenArms[a.key];
+    return '<button class="lgb' + (off ? ' off' : '') + '" data-arm="' + esc(a.key) + '">' +
+      '<i class="sw" style="background:' + colorOf(a) + '"></i><span class="lb">' + esc(nameOf(a)) + '</span></button>';
+  });
+  var offB = !!state.hiddenArms.__bench;
+  items.push('<button class="lgb' + (offB ? ' off' : '') + '" data-arm="__bench">' +
+    '<i class="sw" style="background:' + C.muted + '"></i><span class="lb">同池等权基准</span></button>');
+  $('oosLegend').innerHTML = items.join('');
+}
+
+function renderOos() {
+  resetCharts();
+  var withDates = state.arms.filter(function (a) { return a.equity.dates.length; });
+  state.equityDates = withDates.length ? withDates[0].equity.dates.slice() : [];
+  oosLegend();
+  mountChart($('chEquity'), paintEquity);
+  $('oosBody').innerHTML = oosRows();
+  $('oosMembers').innerHTML = oosMemberDetails();
+
+  var o0 = (state.arms[0] && state.arms[0].oos) || {};
+  $('eqHead').textContent = (state.equityDates.length
+    ? (state.equityDates[0] + ' → ' + state.equityDates[state.equityDates.length - 1] + ' · ' +
+       state.equityDates.length + ' 个交易日')
+    : '没有净值数据');
+  $('eqNote').innerHTML = '净值从 1.0 起算，扣佣金、印花税与滑点；虚线为同池等权基准（零成本）。' +
+    (isNum(o0.bench_return) ? '基准区间收益 ' + pct(o0.bench_return) + '。' : '') +
+    '悬停查看某一天的净值与区间累计收益。';
+}
+
+/* =====================================================================
+   方法
+   ===================================================================== */
+function renderMethod() {
+  resetCharts();
+  var m = state.data.meta || {};
+  var r = state.data.random || {};
+  var seeds = Array.isArray(m.seeds) ? m.seeds : [];
+  var oosDays = null;
+  state.arms.forEach(function (a) { if (oosDays === null && isNum(a.oos.n)) oosDays = a.oos.n; });
+  var label = cleanText(m.label) || 't 收盘信号 → t+1 开盘进场 → t+6 开盘出场，复权价';
+  var costs = cleanText(m.costs) || '佣金万一（最低 5 元）+ 卖出印花税万五 + 单边 5bp 滑点';
+  var st = m.st || {};
+  var stLine = (isNum(st.official) || isNum(st.proxy))
+    ? ('ST 标记覆盖：官方 ' + fint(st.official) + ' 只 · 代理补全 ' + fint(st.proxy) + ' 只 · 未知 ' +
+       fint(st.unknown) + '；代理补 ' + fint(st.proxy_filled_cells) + ' 个单元格。ST 与停牌在评价与撮合中被剔除。')
+    : 'ST 与停牌在评价与撮合中被剔除。';
+
+  var perRound = (isNum(m.budget) && isNum(m.rounds)) ? Math.max(1, Math.floor(m.budget / m.rounds)) : null;
+
+  var html = '';
+  html += '<h2><span class="no">01</span>实验设计：固定预算</h2>';
+  html += '<p>四组共享同一批 <b>' + seeds.length + ' 个初始因子</b>（meta.seeds），各自再做 <b>' +
+    fint(m.budget) + ' 次</b>新增候选的「完整评价」，分 <b>' + fint(m.rounds) + ' 轮</b>执行' +
+    (perRound ? '，每轮预算约 ' + perRound + ' 次' : '') + '。' +
+    '四组使用同一训练区间、同一标签、同一证券池与同一组费用参数，唯一的差异是「如何提出候选、如何决定去留」。</p>';
+  html += '<p>一次<b>完整评价</b>包括：计算因子矩阵（' + fint(m.n_train_days) + ' 个训练交易日 × ' +
+    fint(m.n_codes) + ' 只证券）、训练期 RankIC 与 HAC t 值、分位组合的单调性、与当前池的最大相关、' +
+    '以及对池合成分数的增量 IC。这个成本很高，所以预算的分配方式本身就是被比较的对象。</p>';
+  html += '<table class="kvtab"><tr><th>训练区间</th><td>' + esc(range(m.train)) + '（' +
+    fint(m.n_train_days) + ' 个交易日）</td></tr>' +
+    '<tr><th>验证区间</th><td>' + esc(range(m.valid)) + '</td></tr>' +
+    '<tr><th>样本外</th><td>' + esc(range(m.oos)) + (isNum(oosDays) ? '（' + fint(oosDays) + ' 个交易日）' : '') + '</td></tr>' +
+    '<tr><th>评价预算</th><td>' + fint(m.budget) + ' 次完整评价 / 组 · ' + fint(m.rounds) + ' 轮</td></tr>' +
+    '<tr><th>证券池</th><td>' + fint(m.n_codes) + ' 只</td></tr>' +
+    '<tr><th>初始因子</th><td>' + seeds.length + ' 个（八组同源，见下）</td></tr></table>';
+  html += '<p class="muted" style="font-size:11px">初始因子：' + (seeds.map(function (s) {
+    if (!s || typeof s !== 'object') return '';
+    return '<code>' + esc((cleanText(s.name) || '?') + ' = ' + (s.formula || '')) + '</code>';
+  }).join('　') || '—') + '</p>';
+
+  html += '<h2><span class="no">02</span>四组定义</h2>';
+  html += '<table class="kvtab"><tr><th style="width:96px">基线</th><td>' +
+    '只保留一个「当前最优」；子代对该最优做均匀变异；只有当候选的 |RankIC| 更高时才替换。' +
+    '不做相关门控与增量门控，因此容易反复生成同一类公式。</td></tr>' +
+    '<tr><th>Harness</th><td>维护因子池（容量 8），按 |RankIC| 的 1.5 次方加权选父代，' +
+    '以 25% 概率与池内另一成员交叉，其余为变异；子代必须通过相关门控与增量门控才能进池，' +
+    '池满时替换最弱成员。多出来的多样性直接来自这些约束。</td></tr>' +
+    '<tr><th>学习</th><td>在 Harness 之上加一个候选评分器：用已经完整评价过的候选（含父代分数）' +
+    '拟合结构特征到 |RankIC| 的线性模型，每轮提出 2 倍候选，只把完整评价花在预测最好的 ' +
+    (perRound || '若干') + ' 个上，其余标记为「模型筛除」。它改变的是<b>评价预算的分配</b>，不是门控标准。</td></tr>' +
+    '<tr><th>随机对照</th><td>随机生成表达式树（深度不超过 6），不迭代、不门控、不选父代。' +
+    '当前导出 <b>' + fint(r.n) + '</b> 个公式，只用于估计「搜索次数本身」的收益与选择偏差。</td></tr></table>';
+
+  html += '<h2><span class="no">03</span>标签与费用</h2>';
+  html += '<p><b>标签：</b>' + esc(label) + '。因子在 t 日收盘后可得，t+1 开盘进场，t+6 开盘出场，' +
+    '收益率取复权价，避免除权日造成虚假信号。</p>';
+  html += '<p><b>费用：</b>' + esc(costs) + '。账户初始 10 亿，取合成分数最高的 100 只等权持有，每 5 个交易日调仓，' +
+    '停牌、涨跌停与 ST 不可成交。</p>';
+  html += '<p>' + esc(stLine) + '</p>';
+
+  var lr = state.data.learning || {};
+  var lpred = Array.isArray(lr.pred) ? lr.pred : [];
+  var lact = Array.isArray(lr.actual) ? lr.actual : [];
+  var hasLearn = lpred.length > 2 && lact.length === lpred.length;
+  if (hasLearn) {
+    var rho = isNum(lr.spearman_pred_actual) ? lr.spearman_pred_actual : null;
+    var verdict = '';
+    if (rho !== null) {
+      verdict = Math.abs(rho) < 0.15
+        ? '预测值与实际几乎不相关，本轮评分器没有提供有效的排序信息。'
+        : (rho > 0 ? '预测方向与实际一致，评分器具备一定的排序能力。' : '预测方向与实际相反，评分器本轮失效。');
+    }
+    html += '<h2><span class="no">04</span>学习型候选评分器</h2>';
+    html += '<p>评分器只用<b>结构特征</b>（节点数、深度、窗口长度、是否含横截面算子、父代得分）预测候选的 |RankIC|，' +
+      '不接触候选自身的评价结果，因此不会直接泄漏训练期的评价信息；但它优化的是<b>评价预算的分配效率</b>，' +
+      '不构成新的 alpha 证据。</p>';
+    html += '<p>本轮共有 <b>' + fint(lr.n_train) + '</b> 个候选进入评分器的训练样本；在时间上靠后的 ' +
+      lpred.length + ' 个候选上，预测值与实际 |RankIC| 的 Spearman 相关为 <b>' + f4(rho) + '</b>。' +
+      esc(verdict) + '</p>';
+    html += '<div class="chart" style="margin:10px 0 16px">' +
+      '<div class="chart-head"><h3>预测 |RankIC| vs 实际 |RankIC|</h3>' +
+      '<span class="hh">Spearman ' + f4(rho) + ' · ' + lpred.length + ' 个候选</span></div>' +
+      '<canvas id="chLearn"></canvas></div>';
+  }
+
+  html += '<h2><span class="no">05</span>门控规则</h2>';
+  html += '<table class="kvtab"><tr><th>覆盖度</th><td>有效样本 ≥ 800 只，样本太少的公式直接判 <code>coverage</code></td></tr>' +
+    '<tr><th>|RankIC|</th><td>≥ <b>0.015</b>，否则 <code>weak_ic</code></td></tr>' +
+    '<tr><th>|t|</th><td>≥ <b>2</b>（Newey-West HAC 调整后），否则 <code>t&lt;2</code></td></tr>' +
+    '<tr><th>与池最大相关</th><td>≤ <b>0.85</b>，否则 <code>redundant</code>：池内已有近似替代品</td></tr>' +
+    '<tr><th>增量 IC</th><td>≥ <b>0.002</b>，即对池合成分数仍有边际贡献，否则 <code>no_increment</code></td></tr>' +
+    '<tr><th>表达式规模</th><td>节点数 ≤ 12，超出时回退为父代</td></tr>' +
+    '<tr><th>池容量</th><td>8 个成员，满员时只能替换最弱成员，否则 <code>weaker_than_pool</code></td></tr></table>';
+  html += '<p>门控的顺序是：覆盖度 → |IC| → t → 相关 → 增量。基线组只做前三项与「是否超过当前最优」，' +
+    '因此它的池永远只有 1 个成员；这也是它一旦落入局部最优就再也出不来的原因。</p>';
+
+  html += '<h2><span class="no">06</span>样本外只跑一次</h2>';
+  html += '<p>训练结束后，每组的最终池被<b>冻结</b>：池内成员按训练期 IC 的方向对齐（负 IC 取反），' +
+    '做等权秩平均得到合成分数，然后在 ' + esc(range(m.oos)) + ' 上只评价一次。' +
+    '样本外指标与账户曲线不参与任何选择或调参，因此组间差异不再来自「事后挑选」。</p>';
+  html += '<p>「同池等权」基准是把该池覆盖到的证券等权持有、零成本，用来把选股能力与分散度分开；' +
+    '样本外超额因此不能全部读成因子的 alpha。随机组的「最佳公式」也做同样的一次样本外评价，' +
+    '它的训练 → 样本外落差就是选择偏差最直观的度量。</p>';
+
+  html += '<h2><span class="no">07</span>局限</h2>';
+  html += '<ul>' +
+    '<li><b>训练区间已被反复研究。</b>2021–2023 在前几讲里被反复用来挑因子与调参，' +
+    '样本外 2025–2026 也已在其他作业中出现，所以这不是真正的盲测。</li>' +
+    '<li><b>日线撮合。</b>t 收盘信号、t+1 开盘进场、t+6 开盘出场，未建模盘中冲击、部分成交与容量约束；' +
+    '滑点按单边 5bp 一刀切，真实冲击成本对大资金会更差。</li>' +
+    '<li><b>未做行业与市值中性化。</b>因子暴露可能来自风格而非选股，池内相关性也没有做风格剥离，' +
+    '「增量」可能同时包含风格互补。</li>' +
+    '<li><b>适应度只看 RankIC。</b>换手与成本没有进入搜索目标，成本只在最后的一次账户检验中体现，' +
+    '因此搜索会系统性地偏向高换手的短周期公式。</li>' +
+    '<li><b>选择偏差。</b>随机对照只有 ' + fint(r.n) + ' 个样本，选择偏差曲线的实测值在 N 超过样本数后' +
+    '退化为全体最大值；它说明趋势，不构成严格的显著性检验。</li>' +
+    '<li><b>学习型评分器的定位。</b>它只预测训练期 |RankIC|，优化的是搜索效率，' +
+    '不构成新的 alpha 证据；样本量小时会退化为 Harness。</li>' +
+    '</ul>';
+
+  $('methodWrap').innerHTML = html;
+  if (hasLearn) mountChart($('chLearn'), paintLearn);
+}
+
+/* =====================================================================
+   图表基础设施
+   ===================================================================== */
+function prepareCanvas(canvas) {
+  if (!canvas) return null;
+  // 隐藏标签页 / 无可见视口时 clientWidth 为 0, 用兜底尺寸, 否则图永远画不出来
+  var w = canvas.clientWidth || 720, h = canvas.clientHeight || 240;
+  var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  var pw = Math.round(w * dpr), ph = Math.round(h * dpr);
+  if (canvas.width !== pw || canvas.height !== ph) {
+    canvas.width = pw;
+    canvas.height = ph;
+  }
+  var ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return {ctx: ctx, w: w, h: h};
+}
+
+function emptyNote(ctx, w, h, msg) {
+  ctx.fillStyle = C.dim;
+  ctx.font = '12px ' + SANS;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(msg || '暂无数据', w / 2, h / 2);
+}
+
+function niceNum(range, round) {
+  if (!(range > 0) || !isFinite(range)) return 1;
+  var exp = Math.floor(Math.log10(range));
+  var f = range / Math.pow(10, exp);
+  var nf;
+  if (round) nf = f < 1.5 ? 1 : (f < 3 ? 2 : (f < 7 ? 5 : 10));
+  else nf = f <= 1 ? 1 : (f <= 2 ? 2 : (f <= 5 ? 5 : 10));
+  return nf * Math.pow(10, exp);
+}
+
+function niceScale(lo, hi, target) {
+  target = target || 5;
+  if (!isFinite(lo) || !isFinite(hi)) return null;
+  if (hi < lo) { var t = lo; lo = hi; hi = t; }
+  if (hi - lo < 1e-12) {
+    var p0 = Math.max(Math.abs(hi) * 0.1, 1e-6);
+    lo -= p0; hi += p0;
+  }
+  var step = niceNum(niceNum(hi - lo, false) / Math.max(2, target - 1), true);
+  var nlo = Math.floor(lo / step) * step;
+  var nhi = Math.ceil(hi / step) * step;
+  var ticks = [];
+  var count = Math.round((nhi - nlo) / step);
+  for (var i = 0; i <= count; i++) {
+    var v = nlo + i * step;
+    ticks.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+  }
+  return {lo: nlo, hi: nhi, ticks: ticks, step: step};
+}
+
+function mountChart(canvas, paint) {
+  if (!canvas) return;
+  var draw = function () { paint(canvas); };
+  canvas.__draw = draw;
+  draw();
+  state.charts.push(draw);
+  attachHover(canvas);
+}
+
+function resetCharts() {
+  state.charts = [];
+}
+
+function hideTip() {
+  var t = $('tip');
+  if (t) t.hidden = true;
+}
+
+function attachHover(canvas) {
+  if (!canvas || canvas.__hoverBound) return;
+  canvas.__hoverBound = true;
+  canvas.addEventListener('mousemove', function (ev) {
+    var r = canvas.getBoundingClientRect();
+    var mx = ev.clientX - r.left, my = ev.clientY - r.top;
+    var res = canvas.__hit ? canvas.__hit(mx, my) : null;
+    var tip = $('tip');
+    if (!res) {
+      hideTip();
+      if (canvas.__hl != null) { canvas.__hl = null; if (canvas.__draw) canvas.__draw(); }
+      return;
+    }
+    if (res.hl !== undefined && canvas.__hl !== res.hl) {
+      canvas.__hl = res.hl;
+      if (canvas.__draw) canvas.__draw();
+    }
+    tip.innerHTML = res.html;
+    tip.hidden = false;
+    var tw = tip.offsetWidth, th = tip.offsetHeight;
+    var x = r.left + mx + 14, y = r.top + my + 14;
+    if (x + tw > window.innerWidth - 8) x = r.left + mx - tw - 14;
+    if (y + th > window.innerHeight - 8) y = r.top + my - th - 12;
+    if (x < 6) x = 6;
+    if (y < 6) y = 6;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  });
+  canvas.addEventListener('mouseleave', function () {
+    hideTip();
+    if (canvas.__hl != null) { canvas.__hl = null; if (canvas.__draw) canvas.__draw(); }
+  });
+}
+
+function tipRow(color, name, val) {
+  return '<div class="row"><span><i class="sw" style="background:' + color + '"></i>' + esc(name) +
+    '</span><span>' + esc(val) + '</span></div>';
+}
+
+/* =====================================================================
+   图 1：最好 |RankIC| 随轮次
+   ===================================================================== */
+function paintBestIC(canvas) {
+  var dims = prepareCanvas(canvas);
+  if (!dims) { canvas.__hit = null; return; }
+  var ctx = dims.ctx, w = dims.w, h = dims.h;
+
+  var arms = state.arms.filter(function (a) { return a.trace.length; });
+  if (!arms.length) { emptyNote(ctx, w, h, '没有轮次记录'); canvas.__hit = null; return; }
+
+  var rounds = [];
+  arms.forEach(function (a) {
+    a.trace.forEach(function (t) { if (t && isNum(t.round)) rounds.push(t.round); });
+  });
+  rounds = uniqueSorted(rounds);
+  if (!rounds.length) { emptyNote(ctx, w, h, '没有可用的轮次编号'); canvas.__hit = null; return; }
+
+  var series = [];
+  arms.forEach(function (a) {
+    var map = {};
+    a.trace.forEach(function (t) { if (t && isNum(t.round)) map[t.round] = t; });
+    var color = colorOf(a);
+    series.push({
+      name: nameOf(a), color: color, width: 2, dash: null,
+      vals: rounds.map(function (r) {
+        var t = map[r];
+        return (t && isNum(t.best_ic)) ? Math.abs(t.best_ic) : null;
+      })
+    });
+    if (state.showMean) {
+      series.push({
+        name: nameOf(a) + ' · 池均', color: color, width: 1.1, dash: [4, 3],
+        vals: rounds.map(function (r) {
+          var t = map[r];
+          return (t && isNum(t.pool_mean_ic)) ? Math.abs(t.pool_mean_ic) : null;
+        })
+      });
+    }
+  });
+
+  var all = [];
+  series.forEach(function (s) { s.vals.forEach(function (v) { if (isNum(v)) all.push(v); }); });
+  if (!all.length) { emptyNote(ctx, w, h, '没有可绘制的 |RankIC|'); canvas.__hit = null; return; }
+
+  var lo = Math.min.apply(null, all), hi = Math.max.apply(null, all);
+  var span = (hi - lo) || Math.max(Math.abs(hi) * 0.2, 0.02);
+  var dom = niceScale(Math.max(0, lo - span * 0.45), hi + span * 0.45, 4);
+  if (!dom) dom = {lo: 0, hi: hi, ticks: [0, hi]};
+
+  var L = 60, R = 16, T = 28, B = 36;
+  var pw = Math.max(10, w - L - R), ph = Math.max(10, h - T - B);
+  var X = function (i) { return rounds.length === 1 ? L + pw / 2 : L + pw * i / (rounds.length - 1); };
+  var Y = function (v) { return T + ph * (1 - (v - dom.lo) / (dom.hi - dom.lo)); };
+
+  ctx.font = '10px ' + MONO;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  dom.ticks.forEach(function (v) {
+    var y = Math.round(Y(v)) + 0.5;
+    ctx.strokeStyle = (v === 0 ? C.grid2 : C.grid);
+    ctx.beginPath();
+    ctx.moveTo(L, y);
+    ctx.lineTo(w - R, y);
+    ctx.stroke();
+    ctx.fillStyle = C.dim;
+    ctx.fillText(v.toFixed(4), L - 8, y);
+  });
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.font = '10px ' + MONO;
+  rounds.forEach(function (r, i) {
+    ctx.fillStyle = C.muted;
+    ctx.fillText('R' + r, X(i), T + ph + 7);
+  });
+  ctx.fillStyle = C.dim;
+  ctx.font = '10px ' + SANS;
+  ctx.fillText('轮次', L + pw / 2, T + ph + 22);
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.fillStyle = C.dim;
+  ctx.font = '10px ' + SANS;
+  ctx.fillText('|RankIC|', 2, T - 8);
+
+  series.forEach(function (s) {
+    ctx.save();
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = s.width;
+    ctx.globalAlpha = s.dash ? 0.5 : 1;
+    if (s.dash) ctx.setLineDash(s.dash);
+    var started = false;
+    ctx.beginPath();
+    s.vals.forEach(function (v, i) {
+      if (!isNum(v)) { started = false; return; }
+      var x = X(i), y = Y(v);
+      if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+    s.vals.forEach(function (v, i) {
+      if (!isNum(v)) return;
+      var x = X(i), y = Y(v);
+      ctx.beginPath();
+      ctx.arc(x, y, s.dash ? 2.2 : 3.3, 0, Math.PI * 2);
+      ctx.fillStyle = s.dash ? C.panel : s.color;
+      ctx.fill();
+      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = s.color;
+      ctx.stroke();
+    });
+    ctx.restore();
+  });
+
+  if (canvas.__hl != null && rounds[canvas.__hl] !== undefined) {
+    var xh = Math.round(X(canvas.__hl)) + 0.5;
+    ctx.save();
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = 'rgba(233,236,231,.26)';
+    ctx.beginPath();
+    ctx.moveTo(xh, T - 6);
+    ctx.lineTo(xh, T + ph);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  canvas.__hit = function (mx, my) {
+    if (mx < L - 16 || mx > w - R + 16 || my < T - 12 || my > T + ph + 10) return null;
+    var i = 0;
+    if (rounds.length > 1) {
+      i = Math.round((mx - L) / (pw / (rounds.length - 1)));
+      i = Math.max(0, Math.min(rounds.length - 1, i));
+    }
+    var rows = series.map(function (s) {
+      var v = s.vals[i];
+      return tipRow(s.color, s.name, isNum(v) ? v.toFixed(4) : '—');
+    }).join('');
+    return {hl: i, html: '<b>第 ' + rounds[i] + ' 轮</b>' + rows};
+  };
+}
+
+/* =====================================================================
+   图 2：随机公式分布
+   ===================================================================== */
+function paintRndHist(canvas) {
+  var dims = prepareCanvas(canvas);
+  if (!dims) { canvas.__hit = null; return; }
+  var ctx = dims.ctx, w = dims.w, h = dims.h;
+
+  var items = ((state.data.random || {}).items || []).filter(function (it) {
+    return it && isNum(it.rank_ic);
+  });
+  if (!items.length) { emptyNote(ctx, w, h, '随机组没有导出候选明细'); canvas.__hit = null; return; }
+
+  var vals = items.map(function (it) { return it.rank_ic; });
+  var lo0 = Math.min(0, Math.min.apply(null, vals));
+  var hi0 = Math.max(0, Math.max.apply(null, vals));
+  if (hi0 - lo0 < 1e-9) { lo0 -= 0.01; hi0 += 0.01; }
+  var hs = niceScale(lo0, hi0, 5) || {lo: lo0, hi: hi0, ticks: [lo0, hi0]};
+  var lo = hs.lo, hi = hs.hi;
+
+  var nb = Math.max(6, Math.min(16, Math.round(Math.sqrt(vals.length) * 2)));
+  var bw = (hi - lo) / nb;
+  var bins = [];
+  for (var i = 0; i < nb; i++) {
+    bins.push({lo: lo + i * bw, hi: lo + (i + 1) * bw, n: 0, items: []});
+  }
+  vals.forEach(function (v, k) {
+    var bi = Math.floor((v - lo) / bw);
+    if (bi < 0) bi = 0;
+    if (bi >= nb) bi = nb - 1;
+    bins[bi].n += 1;
+    bins[bi].items.push(items[k]);
+  });
+  var maxC = bins.reduce(function (m, b) { return Math.max(m, b.n); }, 0);
+
+  var L = 36, R = 14, T = 24, B = 40;
+  var pw = Math.max(10, w - L - R), ph = Math.max(10, h - T - B);
+  var Y = function (c) { return T + ph * (1 - c / Math.max(1, maxC)); };
+  var X = function (v) { return L + pw * (v - lo) / (hi - lo); };
+
+  var step = Math.max(1, Math.ceil(maxC / 4));
+  ctx.font = '10px ' + MONO;
+  for (var c = 0; c <= maxC; c += step) {
+    var y = Math.round(Y(c)) + 0.5;
+    ctx.strokeStyle = C.grid;
+    ctx.beginPath();
+    ctx.moveTo(L, y);
+    ctx.lineTo(w - R, y);
+    ctx.stroke();
+    ctx.fillStyle = C.dim;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(c), L - 6, y);
+  }
+
+  bins.forEach(function (b, bi) {
+    var x0 = X(b.lo), x1 = X(b.hi);
+    var y0 = Y(0), y1 = Y(b.n);
+    var col = ((b.lo + b.hi) / 2) >= 0 ? C.teal : C.red;
+    ctx.fillStyle = (canvas.__hl === bi) ? col : rgba(col, 0.5);
+    var bw2 = Math.max(1, x1 - x0 - 2);
+    ctx.fillRect(x0 + 1, y1, bw2, Math.max(0, y0 - y1));
+  });
+
+  var zx = Math.round(X(0)) + 0.5;
+  ctx.strokeStyle = 'rgba(233,236,231,.3)';
+  ctx.beginPath();
+  ctx.moveTo(zx, T);
+  ctx.lineTo(zx, T + ph);
+  ctx.stroke();
+
+  var xs = hs;
+  if (xs) {
+    ctx.font = '10px ' + MONO;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    xs.ticks.forEach(function (v) {
+      if (v < lo - 1e-9 || v > hi + 1e-9) return;
+      ctx.fillStyle = (Math.abs(v) < 1e-12) ? C.muted : C.dim;
+      ctx.fillText(v.toFixed(4), Math.max(L + 24, Math.min(w - R - 24, X(v))), T + ph + 7);
+    });
+  }
+  ctx.fillStyle = C.dim;
+  ctx.font = '10px ' + SANS;
+  ctx.textAlign = 'center';
+  ctx.fillText('训练期 RankIC（负值为反向信号）', L + pw / 2, T + ph + 23);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.fillStyle = C.dim;
+  ctx.fillText('公式数', 2, T - 8);
+
+  canvas.__hit = function (mx, my) {
+    if (mx < L - 10 || mx > w - R + 10 || my < T - 10 || my > T + ph + 10) return null;
+    var bi = Math.floor((mx - L) / (pw / nb));
+    bi = Math.max(0, Math.min(nb - 1, bi));
+    var b = bins[bi];
+    var list = b.items.slice(0, 3).map(function (it) {
+      return '<div class="fx">' + esc(it.formula) + '</div>';
+    }).join('');
+    return {
+      hl: bi,
+      html: '<b>' + b.lo.toFixed(4) + ' ~ ' + b.hi.toFixed(4) + '</b>' +
+        '<div class="row"><span>公式数</span><span>' + b.n + '</span></div>' + list
+    };
+  };
+}
+
+/* =====================================================================
+   图 3：选择偏差
+   ===================================================================== */
+function paintBias(canvas) {
+  var dims = prepareCanvas(canvas);
+  if (!dims) { canvas.__hit = null; return; }
+  var ctx = dims.ctx, w = dims.w, h = dims.h;
+
+  var b = state.data.selection_bias || {};
+  var ns = Array.isArray(b.n) ? b.n : [];
+  var exp = Array.isArray(b.expected_max) ? b.expected_max : [];
+  var obs = Array.isArray(b.observed_max) ? b.observed_max : [];
+  var pts = [];
+  ns.forEach(function (n, i) {
+    if (isNum(n) && n > 0 && (isNum(exp[i]) || isNum(obs[i]))) {
+      pts.push({n: n, e: isNum(exp[i]) ? exp[i] : null, o: isNum(obs[i]) ? obs[i] : null});
+    }
+  });
+  if (!pts.length) { emptyNote(ctx, w, h, '没有选择偏差数据'); canvas.__hit = null; return; }
+
+  var logx = state.biasLog;
+  var xs = pts.map(function (p) { return logx ? Math.log10(p.n) : p.n; });
+  var xlo = Math.min.apply(null, xs), xhi = Math.max.apply(null, xs);
+  if (xhi - xlo < 1e-9) { xlo -= 1; xhi += 1; }
+
+  var yvals = [];
+  pts.forEach(function (p) { if (isNum(p.e)) yvals.push(p.e); if (isNum(p.o)) yvals.push(p.o); });
+  var med = (state.data.random || {}).median_ic;
+  var ylo = Math.min.apply(null, yvals), yhi = Math.max.apply(null, yvals);
+  var span = (yhi - ylo) || 0.02;
+  var dom = niceScale(ylo - span * 0.3, yhi + span * 0.35, 5);
+  if (!dom) dom = {lo: 0, hi: yhi, ticks: [0, yhi]};
+
+  var L = 60, R = 16, T = 28, B = 40;
+  var pw = Math.max(10, w - L - R), ph = Math.max(10, h - T - B);
+  var X = function (v) { return L + pw * (v - xlo) / (xhi - xlo); };
+  var Y = function (v) { return T + ph * (1 - (v - dom.lo) / (dom.hi - dom.lo)); };
+
+  ctx.font = '10px ' + MONO;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  dom.ticks.forEach(function (v) {
+    var y = Math.round(Y(v)) + 0.5;
+    ctx.strokeStyle = C.grid;
+    ctx.beginPath();
+    ctx.moveTo(L, y);
+    ctx.lineTo(w - R, y);
+    ctx.stroke();
+    ctx.fillStyle = C.dim;
+    ctx.fillText(v.toFixed(4), L - 8, y);
+  });
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  pts.forEach(function (p, i) {
+    ctx.fillStyle = C.muted;
+    ctx.fillText(String(p.n), X(xs[i]), T + ph + 7);
+  });
+  ctx.fillStyle = C.dim;
+  ctx.font = '10px ' + SANS;
+  ctx.fillText(logx ? '搜索次数 N（对数轴）' : '搜索次数 N（线性轴）', L + pw / 2, T + ph + 22);
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.fillStyle = C.dim;
+  ctx.fillText('最大 |RankIC|', 2, T - 8);
+
+  if (isNum(med) && Math.abs(med) > dom.lo && Math.abs(med) < dom.hi) {
+    var ym = Y(Math.abs(med));
+    ctx.save();
+    ctx.setLineDash([2, 4]);
+    ctx.strokeStyle = 'rgba(182,160,200,.55)';
+    ctx.beginPath();
+    ctx.moveTo(L, ym);
+    ctx.lineTo(w - R, ym);
+    ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = 'rgba(182,160,200,.8)';
+    ctx.font = '9.5px ' + SANS;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('随机中位 |IC| ' + Math.abs(med).toFixed(4), w - R - 2, ym - 2);
+  }
+
+  function drawSeries(vals, color, dash, hollow, label) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = dash ? 1.3 : 1.9;
+    if (dash) ctx.setLineDash(dash);
+    ctx.beginPath();
+    var started = false;
+    vals.forEach(function (v, i) {
+      if (!isNum(v)) { started = false; return; }
+      var x = X(xs[i]), y = Y(v);
+      if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+    vals.forEach(function (v, i) {
+      if (!isNum(v)) return;
+      var x = X(xs[i]), y = Y(v);
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      if (hollow) { ctx.fillStyle = C.panel; ctx.fill(); }
+      else { ctx.fillStyle = color; ctx.fill(); }
+      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = color;
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  drawSeries(pts.map(function (p) { return p.e; }), C.muted, [4, 3], true);
+  drawSeries(pts.map(function (p) { return p.o; }), C.teal, null, false);
+
+  var last = pts[pts.length - 1];
+  if (isNum(last.o)) {
+    ctx.fillStyle = C.teal;
+    ctx.font = '10px ' + MONO;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(last.o.toFixed(4), X(xs[xs.length - 1]) - 4, Y(last.o) - 5);
+  }
+
+  ctx.fillStyle = 'rgba(214,178,121,.85)';
+  ctx.font = '10.5px ' + SANS;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('候选越多，历史最好成绩越好看', w - R, T - 8);
+
+  canvas.__hit = function (mx, my) {
+    if (mx < L - 16 || mx > w - R + 16 || my < T - 12 || my > T + ph + 12) return null;
+    var best = 0, bd = Infinity;
+    pts.forEach(function (p, i) {
+      var d = Math.abs(X(xs[i]) - mx);
+      if (d < bd) { bd = d; best = i; }
+    });
+    var p = pts[best];
+    var diff = (isNum(p.o) && isNum(p.e)) ? (p.o - p.e) : null;
+    return {
+      hl: best,
+      html: '<b>N = ' + p.n + '</b>' +
+        tipRow(C.muted, '零假设期望最大 |IC|', isNum(p.e) ? p.e.toFixed(4) : '—') +
+        tipRow(C.teal, '随机组实测最大 |IC|', isNum(p.o) ? p.o.toFixed(4) : '—') +
+        tipRow(C.dim, '实测 − 期望', isNum(diff) ? (diff >= 0 ? '+' : '') + diff.toFixed(4) : '—')
+    };
+  };
+}
+
+/* =====================================================================
+   图 4：样本外净值
+   ===================================================================== */
+function paintEquity(canvas) {
+  var dims = prepareCanvas(canvas);
+  if (!dims) { canvas.__hit = null; return; }
+  var ctx = dims.ctx, w = dims.w, h = dims.h;
+
+  var series = [];
+  state.arms.forEach(function (a) {
+    if (!a.equity.nav.length) return;
+    if (state.hiddenArms[a.key]) return;
+    series.push({key: a.key, name: nameOf(a), color: colorOf(a), vals: a.equity.nav, dash: null});
+  });
+  var withBench = null;
+  for (var i = 0; i < state.arms.length; i++) {
+    if (state.arms[i].equity.bench.length) { withBench = state.arms[i]; break; }
+  }
+  if (withBench && !state.hiddenArms.__bench) {
+    series.push({key: '__bench', name: '同池等权基准', color: C.muted, vals: withBench.equity.bench, dash: [5, 3]});
+  }
+  if (!series.length) { emptyNote(ctx, w, h, '没有可绘制的净值曲线'); canvas.__hit = null; return; }
+
+  var dates = state.equityDates;
+  var maxLen = 0;
+  series.forEach(function (s) { maxLen = Math.max(maxLen, s.vals.length); });
+  if (!maxLen) { emptyNote(ctx, w, h, '净值序列为空'); canvas.__hit = null; return; }
+
+  var all = [];
+  series.forEach(function (s) {
+    s.vals.forEach(function (v) { if (isNum(v) && (v > 0.02 && v < 50)) all.push(v); });
+  });
+  if (!all.length) { emptyNote(ctx, w, h, '净值序列没有有效数值'); canvas.__hit = null; return; }
+
+  var lo = Math.min.apply(null, all), hi = Math.max.apply(null, all);
+  var span = (hi - lo) || 0.05;
+  var dom = niceScale(lo - span * 0.08, hi + span * 0.08, 5);
+  if (!dom) dom = {lo: lo, hi: hi, ticks: [lo, hi]};
+
+  var L = 56, R = 16, T = 14, B = 34;
+  var pw = Math.max(10, w - L - R), ph = Math.max(10, h - T - B);
+  var X = function (i) { return maxLen === 1 ? L + pw / 2 : L + pw * i / (maxLen - 1); };
+  var Y = function (v) { return T + ph * (1 - (v - dom.lo) / (dom.hi - dom.lo)); };
+
+  ctx.font = '10px ' + MONO;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  dom.ticks.forEach(function (v) {
+    var y = Math.round(Y(v)) + 0.5;
+    ctx.strokeStyle = C.grid;
+    ctx.beginPath();
+    ctx.moveTo(L, y);
+    ctx.lineTo(w - R, y);
+    ctx.stroke();
+    ctx.fillStyle = C.dim;
+    ctx.fillText(v.toFixed(2), L - 8, y);
+  });
+
+  if (dom.lo <= 1 && dom.hi >= 1) {
+    var y1 = Y(1);
+    ctx.save();
+    ctx.setLineDash([2, 4]);
+    ctx.strokeStyle = 'rgba(233,236,231,.16)';
+    ctx.beginPath();
+    ctx.moveTo(L, y1);
+    ctx.lineTo(w - R, y1);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  var nTicks = Math.min(6, maxLen);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = C.dim;
+  ctx.font = '10px ' + MONO;
+  for (var k = 0; k < nTicks; k++) {
+    var idx = nTicks === 1 ? 0 : Math.round(k * (maxLen - 1) / (nTicks - 1));
+    var lab = (dates[idx] || '').slice(0, 7);
+    var x = X(idx);
+    ctx.fillText(lab, Math.max(L + 18, Math.min(w - R - 18, x)), T + ph + 7);
+  }
+
+  series.forEach(function (s) {
+    ctx.save();
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = s.dash ? 1.3 : 1.7;
+    if (s.dash) ctx.setLineDash(s.dash);
+    ctx.beginPath();
+    var started = false;
+    for (var j = 0; j < s.vals.length; j++) {
+      var v = s.vals[j];
+      if (!isNum(v) || v <= 0.02 || v >= 50) { started = false; continue; }
+      var px = X(j), py = Y(v);
+      if (!started) { ctx.moveTo(px, py); started = true; } else { ctx.lineTo(px, py); }
+    }
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  if (canvas.__hl != null && canvas.__hl < maxLen) {
+    var xh = Math.round(X(canvas.__hl)) + 0.5;
+    ctx.save();
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = 'rgba(233,236,231,.24)';
+    ctx.beginPath();
+    ctx.moveTo(xh, T);
+    ctx.lineTo(xh, T + ph);
+    ctx.stroke();
+    ctx.restore();
+    series.forEach(function (s) {
+      var v = s.vals[canvas.__hl];
+      if (!isNum(v)) return;
+      ctx.beginPath();
+      ctx.arc(X(canvas.__hl), Y(v), 3, 0, Math.PI * 2);
+      ctx.fillStyle = s.color;
+      ctx.fill();
+      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = '#0b1012';
+      ctx.stroke();
+    });
+  }
+
+  canvas.__hit = function (mx, my) {
+    if (mx < L - 16 || mx > w - R + 16 || my < T - 12 || my > T + ph + 14) return null;
+    var idx = Math.round((mx - L) / (pw / Math.max(1, maxLen - 1)));
+    idx = Math.max(0, Math.min(maxLen - 1, idx));
+    var rows = series.map(function (s) {
+      var v = s.vals[idx];
+      if (!isNum(v)) return tipRow(s.color, s.name, '—');
+      var base = null;
+      for (var j = 0; j < s.vals.length; j++) {
+        if (isNum(s.vals[j])) { base = s.vals[j]; break; }
+      }
+      var rel = isNum(base) && base !== 0 ? (v / base - 1) : null;
+      return tipRow(s.color, s.name, v.toFixed(4) + '  ' + (isNum(rel) ? pct(rel) : '—'));
+    }).join('');
+    return {hl: idx, html: '<b>' + esc(dates[idx] || ('第 ' + (idx + 1) + ' 个交易日')) + '</b>' + rows};
+  };
+}
+
+/* =====================================================================
+   图 5：评分器预测 vs 实际
+   ===================================================================== */
+function paintLearn(canvas) {
+  var dims = prepareCanvas(canvas);
+  if (!dims) { canvas.__hit = null; return; }
+  var ctx = dims.ctx, w = dims.w, h = dims.h;
+
+  var lr = state.data.learning || {};
+  var pred = Array.isArray(lr.pred) ? lr.pred : [];
+  var act = Array.isArray(lr.actual) ? lr.actual : [];
+  var n = Math.min(pred.length, act.length);
+  var pts = [];
+  for (var i = 0; i < n; i++) {
+    if (isNum(pred[i]) && isNum(act[i])) pts.push({x: Math.abs(pred[i]), y: Math.abs(act[i])});
+  }
+  if (pts.length < 2) { emptyNote(ctx, w, h, '评分器样本不足'); canvas.__hit = null; return; }
+
+  var xmax = 0, ymax = 0;
+  pts.forEach(function (p) { xmax = Math.max(xmax, p.x); ymax = Math.max(ymax, p.y); });
+  var xd = niceScale(0, xmax * 1.06, 4) || {lo: 0, hi: 1, ticks: [0, 1]};
+  var yd = niceScale(0, ymax * 1.06, 4) || {lo: 0, hi: 1, ticks: [0, 1]};
+
+  var L = 62, R = 16, T = 28, B = 42;
+  var pw = Math.max(10, w - L - R), ph = Math.max(10, h - T - B);
+  var X = function (v) { return L + pw * (v - xd.lo) / (xd.hi - xd.lo); };
+  var Y = function (v) { return T + ph * (1 - (v - yd.lo) / (yd.hi - yd.lo)); };
+
+  ctx.font = '10px ' + MONO;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  yd.ticks.forEach(function (v) {
+    var y = Math.round(Y(v)) + 0.5;
+    ctx.strokeStyle = C.grid;
+    ctx.beginPath();
+    ctx.moveTo(L, y);
+    ctx.lineTo(w - R, y);
+    ctx.stroke();
+    ctx.fillStyle = C.dim;
+    ctx.fillText(v.toFixed(4), L - 8, y);
+  });
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  xd.ticks.forEach(function (v) {
+    var x = X(v);
+    ctx.fillStyle = C.dim;
+    ctx.fillText(v.toFixed(4), Math.max(L + 20, Math.min(w - R - 20, x)), T + ph + 7);
+  });
+  ctx.fillStyle = C.dim;
+  ctx.font = '10px ' + SANS;
+  ctx.fillText('预测 |RankIC|', L + pw / 2, T + ph + 23);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.fillStyle = C.dim;
+  ctx.fillText('实际 |RankIC|', 2, T - 8);
+
+  var sx = 0, sy = 0, sxx = 0, sxy = 0, nn = pts.length;
+  pts.forEach(function (p) { sx += p.x; sy += p.y; sxx += p.x * p.x; sxy += p.x * p.y; });
+  var denom = nn * sxx - sx * sx;
+  var slope = Math.abs(denom) > 1e-12 ? (nn * sxy - sx * sy) / denom : 0;
+  var inter = sy / nn - slope * sx / nn;
+
+  ctx.save();
+  ctx.setLineDash([5, 4]);
+  ctx.strokeStyle = rgba(C.gold, 0.65);
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  var x0 = xd.lo, x1 = xd.hi;
+  ctx.moveTo(X(x0), Y(inter + slope * x0));
+  ctx.lineTo(X(x1), Y(inter + slope * x1));
+  ctx.stroke();
+  ctx.restore();
+
+  pts.forEach(function (p, i) {
+    var r = (canvas.__hl === i) ? 4.6 : 3.1;
+    ctx.beginPath();
+    ctx.arc(X(p.x), Y(p.y), r, 0, Math.PI * 2);
+    ctx.fillStyle = rgba(C.teal, canvas.__hl === i ? 1 : 0.72);
+    ctx.fill();
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = '#0b1012';
+    ctx.stroke();
+  });
+
+  ctx.fillStyle = 'rgba(214,178,121,.85)';
+  ctx.font = '10px ' + MONO;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('拟合斜率 ' + (slope >= 0 ? '+' : '') + slope.toFixed(3), L + 6, T + ph - 6);
+
+  canvas.__hit = function (mx, my) {
+    var best = -1, bd = 14 * 14;
+    pts.forEach(function (p, i) {
+      var dx = X(p.x) - mx, dy = Y(p.y) - my;
+      var d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = i; }
+    });
+    if (best < 0) return null;
+    var p = pts[best];
+    return {
+      hl: best,
+      html: '<b>候选 ' + (best + 1) + '</b>' +
+        tipRow(C.teal, '预测 |RankIC|', p.x.toFixed(4)) +
+        tipRow(C.gold, '实际 |RankIC|', p.y.toFixed(4)) +
+        tipRow(C.dim, '误差', (p.x - p.y >= 0 ? '+' : '') + (p.x - p.y).toFixed(4))
+    };
+  };
+}
+
+/* =====================================================================
+   事件绑定与启动
+   ===================================================================== */
+function bindEvents() {
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) {
+    b.addEventListener('click', function () { switchTab(b.getAttribute('data-tab')); });
+  });
+
+  $('chkMean').addEventListener('change', function () {
+    state.showMean = this.checked;
+    if (state.activeTab === 'overview') {
+      state.charts = [];
+      mountChart($('chBestIC'), paintBestIC);
+    }
+  });
+
+  $('biasLog').addEventListener('change', function () {
+    state.biasLog = this.checked;
+    if (state.activeTab === 'random') {
+      state.charts = [];
+      mountChart($('chRndHist'), paintRndHist);
+      mountChart($('chBias'), paintBias);
+    }
+  });
+
+  $('candArm').addEventListener('change', function () {
+    state.candArm = this.value;
+    paintCandTable();
+  });
+  $('candResult').addEventListener('change', function () {
+    state.candResult = this.value;
+    paintCandTable();
+  });
+
+  $('candHead').addEventListener('click', function (ev) {
+    var th = ev.target.closest ? ev.target.closest('th') : null;
+    if (!th || !th.getAttribute('data-key')) return;
+    var key = th.getAttribute('data-key');
+    if (state.candSort.key === key) {
+      state.candSort.dir *= -1;
+    } else {
+      state.candSort.key = key;
+      state.candSort.dir = (key === 'formula' || key === 'arm' || key === 'result') ? 1 : -1;
+    }
+    paintCandTable();
+  });
+
+  $('oosLegend').addEventListener('click', function (ev) {
+    var btn = ev.target.closest ? ev.target.closest('button[data-arm]') : null;
+    if (!btn) return;
+    var key = btn.getAttribute('data-arm');
+    state.hiddenArms[key] = !state.hiddenArms[key];
+    oosLegend();
+    if (state.activeTab === 'oos') {
+      state.charts = [];
+      mountChart($('chEquity'), paintEquity);
+    }
+  });
+
+  window.addEventListener('hashchange', function () {
+    switchTab(tabFromHash());
+  });
+
+  var rz = 0;
+  window.addEventListener('resize', function () {
+    if (rz) return;
+    rz = requestAnimationFrame(function () {
+      rz = 0;
+      state.charts.forEach(function (f) {
+        try { f(); } catch (e) { /* 单个图表失败不影响其他图表 */ }
+      });
+    });
+  });
+}
+
+function showFatal(err) {
+  var box = $('fatal');
+  var msg = (err && err.message) ? err.message : String(err);
+  $('fatalDetail').textContent = '错误信息：' + msg + '\n请求地址：' + DATA_URL;
+  box.hidden = false;
+  $('stamp').textContent = '数据载入失败';
+}
+
+RENDERERS.overview = renderOverview;
+RENDERERS.candidates = renderCandidates;
+RENDERERS.lineage = renderLineage;
+RENDERERS.random = renderRandom;
+RENDERERS.oos = renderOos;
+RENDERERS.method = renderMethod;
+
+async function init() {
+  bindEvents();
+  try {
+    if (location.protocol === 'file:') {
+      throw new Error('当前页面以 file:// 打开，浏览器会按同源策略拦截 fetch()，无法读取本地 JSON。' +
+        '请在 .repo/issue5 目录执行 python -m http.server 8000，然后访问 http://localhost:8000/evolution.html。');
+    }
+    var raw = await loadData();
+    prepareData(raw);
+    renderHeader();
+    switchTab(tabFromHash());
+  } catch (err) {
+    showFatal(err);
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+round,best_ic,pool_mean_ic,accepts,rejects,evals
+1,0.08105722674043477,0.05028787088022343,1,"{'weak_ic': 1, 'redundant': 4, 'weaker_than_pool': 1}",7
+2,0.08105722674043477,0.052710939594818235,1,"{'redundant': 5, 'weaker_than_pool': 1}",7
+3,0.0898594034846212,0.06093161132665439,2,"{'weak_ic': 2, 'redundant': 4}",8
+4,0.0898594034846212,0.06093161132665439,0,"{'weak_ic': 1, 'redundant': 4, 'weaker_than_pool': 3}",8
+5,0.0898594034846212,0.06655762464454898,1,"{'weak_ic': 1, 'redundant': 4, 'weaker_than_pool': 2}",8
+6,0.0898594034846212,0.06936262694892141,1,"{'redundant': 4, 'weaker_than_pool': 2}",7
+7,0.0898594034846212,0.07737743361804914,2,"{'weak_ic': 2, 'redundant': 4}",8
+8,0.0898594034846212,0.07737743361804914,0,"{'redundant': 4, 'no_increment': 1, 'weaker_than_pool': 2}",7

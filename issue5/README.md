@@ -11,7 +11,7 @@
 - 因子两两截面相关（冗余检查）
 - 头组多头账户：T+1、整手、涨跌停拒单、容量上限、佣金/印花税/滑点
 - 单文件交互式报告 `index.html`（无需联网、无需构建）
-- 16 项单元测试 + 9 项独立复算审计
+- 27 项单元测试（16 项评价 + 11 项演化）+ 9 项独立复算审计
 
 ## 目录
 
@@ -27,9 +27,12 @@ issue5/
 │   ├── engine.py          # 撮合引擎 (T+1/整手/涨跌停/容量/费用)
 │   ├── tradable.py        # 因子 -> 多头账户
 │   └── report.py          # dashboard.json + REPORT.md
-├── tests/test_lab.py      # 单元测试
-├── index.html             # 交互式报告 (需本地 HTTP 服务)
-└── results/               # 运行产出 (CSV / JSON / REPORT.md / trades/)
+├── run_evolution.py       # 第六讲: 固定预算下的四组演化对照
+├── factorlab/evolve/      # 表达式 DSL / 变异 / 评分 / harness
+├── tests/                 # 单元测试 (test_lab.py + test_evolve.py)
+├── index.html             # 因子评价交互报告 (需本地 HTTP 服务)
+├── evolution.html         # 演化实验交互报告
+└── results/               # 运行产出 (CSV / JSON / REPORT.md / trades/ / evolution/)
 ```
 
 ## 运行
@@ -77,7 +80,7 @@ python -m http.server 8000
 ### 4. 自检
 
 ```bash
-python -m unittest discover -s tests -v     # 16 项
+python -m unittest discover -s tests -v     # 27 项
 python audit.py --results results --data-dir feathers \n               --st st_mask.parquet --st-proxy st_proxy.parquet   # 9 项独立复算
 ```
 
@@ -117,6 +120,32 @@ python audit.py --results results --data-dir feathers \n               --st st_m
 1. 低成交额、低成交笔数、低波动的 5 日 RankIC 都在 0.05–0.07，HAC t 值 6–9，很显著。
 2. 但把分数变成 100 只的扣费多头账户后，大部分因子跑输同池等权基准；5 日反转最典型——IC 显著为正，换手极高，扣费后大幅跑输。
 3. 控制价格/成交额/波动/动量四个代理后，低成交额（+0.066→-0.001）、低波动（+0.065→-0.020）、低成交笔数（+0.053→-0.009）、20 日反转（+0.064→-0.000）的 IC 基本归零，说明它们主要是规模与波动暴露；残差 IC 仍为正且 t 值较大的是「成交额收缩」（+0.034，t=6.7）、「5 日反转」（+0.026，t=4.6）和「日内反转」（+0.025，t=4.8）。
+
+## 第六讲 · 因子演化（同一套程序里的 evolve 模块）
+
+`run_evolution.py` 在**固定评价预算**下比较四组方法（对应课件第 34 页的三组对照 + 一个随机对照）：
+
+| 组别 | 允许改变的内容 |
+|---|---|
+| 基线 | 只保留一个"当前最优"，子代均匀变异，`\|RankIC\|` 更高就替换 |
+| Harness | 8 只因子池 + 多样性 + 相关/增量门控 + 按接受率调整变异算子 |
+| 学习 | 在 Harness 上加候选评分器：先用结构特征预测质量，只把完整评价花在预测更好的候选上 |
+| 随机 | 纯随机公式、不迭代，用来估计"搜索次数本身"带来的选择偏差 |
+
+每组共享同样 8 个初始因子，再做 **64 次**完整评价；训练 2021–2023，2024 只做确认，2025-01–2026-09 在冻结后跑一次。
+完整评价 = 计算因子矩阵 + 训练期 RankIC/HAC/五分组 + 与因子池的最大相关与增量 IC。
+
+```bash
+python run_evolution.py --data-dir feathers --st st_mask.parquet --st-proxy st_proxy.parquet                         --budget 64 --rounds 8 --random 64 --out results/evolution
+```
+
+产出 `results/evolution/`：`EVOLUTION.md`、`candidates.csv`（全部候选、接受/拒绝原因）、`trace_*.csv`、`lineage.json`、`evolution.json`；
+网页是 `evolution.html`（读 `data/evolution.json`）。
+
+这一轮的核心结论（数字见 `EVOLUTION.md`）：三组都没能在样本外跑赢同池等权；
+基线组的单点最优在样本外 IC 反而最高；Harness 与学习组提高的是"池的平均质量"而不是"最好的那一个"；
+随机对照说明几十次随机搜索就足以在训练期刷出 `\|RankIC\|≈0.09`，同一批公式样本外只剩约 0.067——
+所以"训练期高分"必须和搜索次数一起报。
 
 ## 局限
 
